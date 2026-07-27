@@ -1053,7 +1053,7 @@ language sql
 stable
 security definer
 set search_path = public
-as $
+as $$
   with shared as (
     select a.score as sa, b.score as sb
     from public.ratings a
@@ -1070,7 +1070,7 @@ as $
     ),
     'score_gap', (select round(avg(abs(sa - sb))::numeric, 2) from shared)
   );
-$;
+$$;
 
 -- 20. FILTER FACETS  (populate the Discover chips without a full table scan
 --     on every keystroke — refresh this materialized view after each sync)
