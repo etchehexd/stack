@@ -18,10 +18,23 @@ wrong, there's a "how to tell it worked" note.
 
 ## 2. Run the schema
 
-1. In your project, open **SQL Editor** (left sidebar) → **New query**.
-2. Open `supabase/schema.sql` from this repo, copy the **entire** file, paste it
-   into the editor, and click **Run**.
-3. It should finish with "Success. No rows returned."
+You're pasting the **contents** of `supabase/schema.sql` — ~750 lines of SQL —
+not the filename. To get it onto your clipboard:
+
+```bash
+npm run schema:copy
+```
+
+(Or open `supabase/schema.sql` in your editor and select-all, copy.)
+
+Then:
+
+1. In your Supabase project, open **SQL Editor** (left sidebar) → **New query**.
+2. Paste (**Ctrl+V** / **Cmd+V**). The editor should fill with SQL beginning with
+   a long line of `=` characters — if you instead see one short line reading
+   `supabase/schema.sql`, you've pasted the path; clear it and try again.
+3. Click **Run**.
+4. It should finish with **"Success. No rows returned."**
 
 **How to tell it worked:** go to **Table Editor**. You should see `profiles`,
 `titles`, `ratings`, `library_entries`, `favorites`, `lists`, `list_items`,
@@ -196,6 +209,7 @@ called `avatars` in the Supabase dashboard first.
 | Sign-in does nothing | Email confirmation is on and you haven't clicked the link | Check your inbox, or disable confirmation for local dev |
 | OAuth button errors | Provider not enabled | Step 4, or remove the buttons |
 | Filter chips are empty on Discover | `facets` view never refreshed | Run `refresh materialized view public.facets;` in the SQL editor |
+| `syntax error at or near "supabase"` in the SQL editor | Pasted the file *path* instead of its contents | `npm run schema:copy`, then paste again — you should see hundreds of lines |
 | Deployed site shows "catalog is empty" but local works | Vercel points at a different Supabase project, or env vars are missing | Compare the Vercel env vars against `.env.local`; redeploy after changing them (env changes don't apply to existing builds) |
 | Build fails on Vercel but passes locally | Missing env var, or a case-sensitive import path | Vercel builds on Linux, which is case-sensitive; check the build log for the exact file |
 | Sign-in works locally, fails on the deployed site | Redirect URL / Site URL still pointing at localhost | Supabase → Authentication → URL Configuration |
