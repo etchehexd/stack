@@ -56,6 +56,33 @@ as $$
   ));
 $$;
 
+-- Builds the search haystack for a title from its four name fields.
+--
+-- WHY THIS IS A FUNCTION rather than inline SQL in the table definition:
+-- a stored generated column may only call functions marked `immutable`, and
+-- `array_to_string` is only marked `stable`. Wrapping the whole expression in
+-- one immutable function satisfies that check. (Doing the concatenation inline
+-- fails with: "generation expression is not immutable".)
+create or replace function public.build_search_text(
+  romaji text,
+  english text,
+  native_title text,
+  synonyms text[]
+)
+returns text
+language sql
+immutable
+parallel safe
+set search_path = public, extensions
+as $$
+  select public.normalize_search(
+    coalesce(romaji, '') || ' ' ||
+    coalesce(english, '') || ' ' ||
+    coalesce(native_title, '') || ' ' ||
+    coalesce(array_to_string(coalesce(synonyms, '{}'::text[]), ' '), '')
+  );
+$$;
+
 -- Half-star validity: 0.5 .. 5.0 in 0.5 increments.
 create or replace function public.is_half_star(v numeric)
 returns boolean
@@ -185,13 +212,10 @@ create table if not exists public.titles (
   created_at        timestamptz not null default now(),
 
   -- Generated, normalized haystack for trigram search across every title variant.
+  -- The expression must be a single immutable function call — see
+  -- build_search_text() above for why.
   search_text       text generated always as (
-    public.normalize_search(
-      coalesce(title_romaji, '') || ' ' ||
-      coalesce(title_english, '') || ' ' ||
-      coalesce(title_native, '') || ' ' ||
-      coalesce(array_to_string(synonyms, ' '), '')
-    )
+    public.build_search_text(title_romaji, title_english, title_native, synonyms)
   ) stored
 );
 
@@ -562,6 +586,11 @@ language sql
 stable
 security definer
 set search_path = public, extensions
+-- Typo tolerance is tuned here. word_similarity compares the query against the
+-- best-matching SPAN of search_text, rather than the whole string — without
+-- this, a 3-word query against a long multi-title haystack always scores below
+-- any useful threshold. 0.3 tolerates roughly two typos in a short title.
+set pg_trgm.word_similarity_threshold = '0.3'
 as $$
   with normalized as (
     select nullif(public.normalize_search(p_query), '') as q
@@ -570,14 +599,16 @@ as $$
     select t.*,
       case
         when n.q is null then 0::real
-        -- exact/prefix hits beat fuzzy hits, then fall back to trigram similarity
+        -- exact/prefix hits beat fuzzy hits, then fall back to fuzzy scoring
         when t.search_text like n.q || '%' then 1.0::real
         when t.search_text like '%' || n.q || '%' then 0.9::real
-        else extensions.similarity(t.search_text, n.q)
+        else extensions.word_similarity(n.q, t.search_text)
       end as rel
     from public.titles t cross join normalized n
     where
-      (n.q is null or t.search_text % n.q or t.search_text like '%' || n.q || '%')
+      -- `%>` is the commutator of `<%`, written this way so the indexed column
+      -- (search_text) is on the left and the GIN trigram index can be used.
+      (n.q is null or t.search_text %> n.q or t.search_text like '%' || n.q || '%')
       and (p_media_types    is null or t.media_type = any(p_media_types))
       and (p_formats        is null or t.format = any(p_formats))
       and (p_exclude_formats is null or t.format is null or not (t.format = any(p_exclude_formats)))
