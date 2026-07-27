@@ -48,8 +48,8 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Calendar</h1>
-          <p className="text-fg-3 mt-1 text-sm">
+          <h1 className="page-title">Calendar</h1>
+          <p className="text-fg-3 mt-2 text-sm">
             The next seven days of airing episodes.
             {user && trackedCount > 0 && ` ${trackedCount} from your library.`}
           </p>
@@ -106,7 +106,7 @@ function DaySection({
       <header className="mb-3 flex items-baseline gap-2.5">
         <h2
           className={cn(
-            "text-base font-semibold tracking-tight",
+            "text-base font-bold tracking-tight",
             isToday && "text-[var(--accent)]",
           )}
         >

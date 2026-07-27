@@ -24,13 +24,15 @@ export interface StarRowProps {
   size?: "sm" | "md" | "lg";
   /** Show the −/+ half-step buttons. On by default in the rating flow. */
   showStepper?: boolean;
+  /** Caller is already rendering the axis name and value above the stars. */
+  hideHeader?: boolean;
   disabled?: boolean;
 }
 
 const SIZES = {
-  sm: { star: 18, gap: 2 },
-  md: { star: 26, gap: 3 },
-  lg: { star: 34, gap: 4 },
+  sm: { star: 20, gap: 3 },
+  md: { star: 30, gap: 5 },
+  lg: { star: 38, gap: 6 },
 } as const;
 
 /**
@@ -53,6 +55,7 @@ export function StarRow({
   description,
   size = "md",
   showStepper = true,
+  hideHeader = false,
   disabled = false,
 }: StarRowProps) {
   const [hover, setHover] = React.useState<number | null>(null);
@@ -60,6 +63,7 @@ export function StarRow({
 
   // What the stars should *look* like right now — hover wins while pointing.
   const shown = hover ?? value ?? 0;
+  const previewing = hover != null && hover !== value;
 
   function set(next: number | null) {
     if (disabled) return;
@@ -108,27 +112,35 @@ export function StarRow({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="min-w-0">
-          <span className="text-sm font-semibold" style={{ color }}>
-            {label}
-          </span>
-          {description && (
-            <span className="text-fg-3 ml-2 hidden text-xs sm:inline">
-              {description}
+    <div className="flex flex-col gap-2">
+      {/* The axis name is set as a small-caps word rather than a coloured chip:
+          the stars below already carry the colour, so repeating it in a label
+          background just makes two competing blocks of hue. */}
+      {!hideHeader && (
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="min-w-0">
+            <span className="axis-caps" style={{ color }}>
+              {label}
             </span>
-          )}
-        </div>
+            {description && (
+              <span className="text-fg-3 ml-2.5 hidden text-xs sm:inline">
+                {description}
+              </span>
+            )}
+          </div>
 
-        <span
-          className="shrink-0 text-sm font-semibold tabular-nums"
-          aria-hidden
-          style={{ color: value == null ? "var(--text-tertiary)" : color }}
-        >
-          {value == null ? "—" : value.toFixed(1)}
-        </span>
-      </div>
+          <span
+            className={cn(
+              "numeral shrink-0 text-base transition-opacity",
+              previewing && "opacity-55",
+            )}
+            aria-hidden
+            style={{ color: shown === 0 ? "var(--text-tertiary)" : color }}
+          >
+            {shown === 0 ? "—" : (shown * 2).toFixed(1)}
+          </span>
+        </div>
+      )}
 
       <div className="flex items-center gap-3">
         <div
@@ -158,7 +170,12 @@ export function StarRow({
                 className="relative"
                 style={{ width: starSize, height: starSize }}
               >
-                <StarGlyph fill={fill} color={color} size={starSize} />
+                <StarGlyph
+                  fill={fill}
+                  color={color}
+                  size={starSize}
+                  muted={previewing}
+                />
 
                 {/* Two invisible hit targets per star: left half and right half. */}
                 <button
@@ -183,7 +200,7 @@ export function StarRow({
         </div>
 
         {showStepper && (
-          <div className="glass-subtle flex items-center gap-0.5 rounded-pill p-0.5">
+          <div className="glass-subtle rounded-pill flex items-center gap-0.5 p-0.5">
             <StepButton
               onClick={() => step(-RATING_STEP)}
               disabled={disabled || value == null}
@@ -240,28 +257,39 @@ function StepButton({
   );
 }
 
-/** A single star, filled 0…1 horizontally via a clip. */
+/**
+ * A single star, filled 0…1 horizontally.
+ *
+ * The glyph is deliberately not the rounded lucide star: sharper points and a
+ * smaller inner radius give it a printed, typographic weight and — the reason
+ * that matters here — make a half-fill read as a clean vertical split instead
+ * of an ambiguous smudge. Empty stars are drawn as a hairline outline so an
+ * unrated row still has five legible marks rather than five grey blobs.
+ */
+const STAR_PATH =
+  "M12 1.4 15.09 8.62 22.9 9.32 17 14.5 18.74 22.16 12 18.1 5.26 22.16 7 14.5 1.1 9.32 8.91 8.62Z";
+
 function StarGlyph({
   fill,
   color,
   size,
+  muted,
 }: {
   fill: number;
   color: string;
   size: number;
+  muted: boolean;
 }) {
   const clipId = React.useId();
-  const path =
-    "M12 2.5l2.9 5.9 6.5.95-4.7 4.58 1.1 6.47L12 17.4l-5.8 3-1.1-6.47L.4 9.35l6.5-.95L12 2.5z";
 
   return (
     <motion.svg
       viewBox="0 0 24 24"
       width={size}
       height={size}
-      animate={{ scale: fill > 0 ? 1 : 0.94 }}
-      transition={{ type: "spring", stiffness: 500, damping: 24 }}
-      className="pointer-events-none block"
+      animate={{ scale: fill > 0 ? 1 : 0.9, opacity: muted && fill > 0 ? 0.62 : 1 }}
+      transition={{ type: "spring", stiffness: 520, damping: 26 }}
+      className="pointer-events-none block overflow-visible"
       aria-hidden
     >
       <defs>
@@ -270,19 +298,29 @@ function StarGlyph({
         </clipPath>
       </defs>
 
-      {/* empty outline */}
+      {/* Empty outline — a hairline, not a fill. */}
       <path
-        d={path}
+        d={STAR_PATH}
         fill="none"
         stroke="var(--glass-border-strong)"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
+        strokeWidth="1.25"
+        strokeLinejoin="miter"
+        strokeMiterlimit="8"
       />
 
-      {/* filled portion */}
       {fill > 0 && (
         <g clipPath={`url(#${clipId})`}>
-          <path d={path} fill={color} />
+          <path d={STAR_PATH} fill={color} />
+          {/* Re-strike the outline over the fill so the point geometry stays
+              crisp at small sizes instead of going soft. */}
+          <path
+            d={STAR_PATH}
+            fill="none"
+            stroke={color}
+            strokeWidth="1.25"
+            strokeLinejoin="miter"
+            strokeMiterlimit="8"
+          />
         </g>
       )}
     </motion.svg>

@@ -62,7 +62,8 @@ src/
     actions/                 Server actions: rating.ts, library.ts
     api/cron/sync/           Scheduled catalog refresh (Vercel Cron)
   components/
-    rating/                  StarRow, RatingPad, RatingScatter, RatingBadge
+    rating/                  StarRow, RatingPad, RatingScatter, RatingHistogram,
+                             RatingBadge, MiniPlane (the 20px plane glyph)
     library/                 ProgressStepper, VolumeField, StatusPicker
     title/                   TitleCard, TitleShelf
     ui/                      Glass primitives incl. TriStateChip

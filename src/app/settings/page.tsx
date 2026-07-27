@@ -13,8 +13,8 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-fg-3 mt-1 text-sm">@{profile.username}</p>
+        <h1 className="page-title">Settings</h1>
+        <p className="text-fg-3 mt-2 text-sm">@{profile.username}</p>
       </div>
 
       <SettingsForm profile={profile} />

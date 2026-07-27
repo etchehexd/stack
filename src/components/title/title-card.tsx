@@ -1,19 +1,9 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "motion/react";
-import { Star } from "lucide-react";
 
-import { RatingBadge } from "@/components/rating/rating-badge";
+import { DualScore, Score } from "@/components/rating/score";
 import type { MediaType } from "@/lib/types/database";
-import {
-  cn,
-  displayTitle,
-  formatLabel,
-  mediaAccent,
-  stripHtml,
-} from "@/lib/utils";
+import { cn, displayTitle, formatLabel, mediaAccent } from "@/lib/utils";
 
 export interface TitleCardData {
   id: string;
@@ -34,7 +24,7 @@ export interface TitleCardData {
 
 export interface TitleCardProps {
   title: TitleCardData;
-  /** The viewer's own rating, if any — shown as the two-axis badge. */
+  /** The viewer's own rating, if any. Takes over the score slot when present. */
   rating?: { enjoyment: number | null; craft: number | null } | null;
   /** Slot for a progress bar or quick-action button under the cover. */
   footer?: React.ReactNode;
@@ -42,6 +32,15 @@ export interface TitleCardProps {
   className?: string;
 }
 
+/**
+ * A poster.
+ *
+ * The art is the card — everything else is a thin band along the bottom edge.
+ * The score sits over the poster rather than under it so the eye lands on
+ * artwork and figure together, and the artwork's own colour bleeds out behind
+ * the card on hover (see `--art`), which is what stops a grid of these reading
+ * as a spreadsheet of rectangles.
+ */
 export function TitleCard({
   title,
   rating,
@@ -51,17 +50,20 @@ export function TitleCard({
 }: TitleCardProps) {
   const accent = mediaAccent(title.media_type);
   const name = displayTitle(title);
+  const art = title.cover_color ?? accent;
+  const rated = Boolean(
+    rating && (rating.enjoyment != null || rating.craft != null),
+  );
 
   return (
-    <motion.article
-      whileHover={{ y: -4 }}
-      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-      className={cn("group flex flex-col gap-2", className)}
+    <article
+      className={cn("group/card flex min-w-0 flex-col gap-2.5", className)}
+      style={{ "--art": art } as React.CSSProperties}
     >
       <Link
         href={`/title/${title.id}`}
-        className="specular relative block aspect-[2/3] overflow-hidden rounded-lg"
-        style={{ background: title.cover_color ?? "var(--bg-base)" }}
+        className="art-glow art-edge lift relative block aspect-[2/3] overflow-hidden rounded-lg"
+        style={{ background: art }}
       >
         {title.cover_image_large ? (
           <Image
@@ -69,8 +71,8 @@ export function TitleCard({
             alt=""
             fill
             priority={priority}
-            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 200px"
-            className="object-cover transition-transform duration-500 [transition-timing-function:var(--ease-glass)] group-hover:scale-[1.06]"
+            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 220px"
+            className="object-cover transition-transform duration-[600ms] [transition-timing-function:var(--ease-glass)] group-hover/card:scale-[1.05]"
           />
         ) : (
           <div className="text-fg-3 grid size-full place-items-center p-2 text-center text-xs">
@@ -78,61 +80,58 @@ export function TitleCard({
           </div>
         )}
 
-        {/* Bottom scrim so overlaid text stays legible on bright covers */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/75 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        {/* Bottom scrim. Always on — it's what the score sits on, not a hover
+            flourish — and deep enough to survive a white-heavy cover. */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[45%]"
+          style={{
+            background:
+              "linear-gradient(to top, oklch(0 0 0 / 0.88) 0%, oklch(0 0 0 / 0.55) 45%, transparent 100%)",
+          }}
+          aria-hidden
+        />
 
-        {/* Media-type accent bar */}
+        {/* Media-type hairline along the top edge. */}
         <span
-          className="absolute inset-x-0 top-0 h-0.5"
+          className="absolute inset-x-0 top-0 h-[3px]"
           style={{ background: accent }}
           aria-hidden
         />
 
-        {title.average_score != null && (
-          <span className="glass-heavy absolute top-2 right-2 inline-flex items-center gap-1 rounded-pill px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
-            <Star className="size-2.5 fill-current" />
-            {title.average_score}
-          </span>
-        )}
-
-        {rating && (rating.enjoyment != null || rating.craft != null) && (
-          <div className="glass-heavy absolute right-2 bottom-2 left-2 rounded-sm px-2 py-1">
-            <RatingBadge
-              enjoyment={rating.enjoyment}
-              craft={rating.craft}
+        <div className="absolute inset-x-2.5 bottom-2.5">
+          {rated ? (
+            <DualScore
+              enjoyment={rating!.enjoyment}
+              craft={rating!.craft}
               size="xs"
             />
-          </div>
-        )}
-
-        {title.synopsis && (
-          <div className="glass-heavy pointer-events-none absolute inset-0 flex flex-col justify-end p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100 max-lg:hidden">
-            <p className="line-clamp-6 text-[11px] leading-relaxed text-white/85">
-              {stripHtml(title.synopsis)}
-            </p>
-          </div>
-        )}
+          ) : (
+            <Score percent={title.average_score} size="sm" className="!p-0" />
+          )}
+        </div>
       </Link>
 
       <div className="min-w-0">
         <Link
           href={`/title/${title.id}`}
-          className="hover:text-fg-2 line-clamp-2 text-sm leading-snug font-medium transition-colors"
+          className="hover:text-fg-2 line-clamp-2 text-[13px] leading-snug font-semibold tracking-tight transition-colors"
         >
           {name}
         </Link>
-        <p className="text-fg-3 mt-0.5 flex items-center gap-1.5 text-xs">
+        <p className="text-fg-3 mt-1 flex items-center gap-1.5 text-[11px]">
           <span>{formatLabel(title.format)}</span>
           {title.season_year && (
             <>
-              <span aria-hidden>·</span>
-              <span>{title.season_year}</span>
+              <span aria-hidden className="opacity-50">
+                ·
+              </span>
+              <span className="tabular-nums">{title.season_year}</span>
             </>
           )}
         </p>
       </div>
 
       {footer}
-    </motion.article>
+    </article>
   );
 }

@@ -10,6 +10,7 @@ export function TitleShelf({
   titles,
   href,
   accent,
+  ratings,
   layout = "row",
   className,
 }: {
@@ -18,6 +19,8 @@ export function TitleShelf({
   titles: TitleCardData[];
   href?: string;
   accent?: string;
+  /** The viewer's own ratings, keyed by title id — drives the plane glyph. */
+  ratings?: Map<string, { enjoyment: number | null; craft: number | null }>;
   /** "row" scrolls horizontally; "grid" wraps. */
   layout?: "row" | "grid";
   className?: string;
@@ -62,6 +65,7 @@ export function TitleShelf({
             <TitleCard
               key={title.id}
               title={title}
+              rating={ratings?.get(title.id) ?? null}
               className="w-[42vw] shrink-0 snap-start sm:w-40 lg:w-44"
             />
           ))}
@@ -69,7 +73,11 @@ export function TitleShelf({
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
           {titles.map((title) => (
-            <TitleCard key={title.id} title={title} />
+            <TitleCard
+              key={title.id}
+              title={title}
+              rating={ratings?.get(title.id) ?? null}
+            />
           ))}
         </div>
       )}

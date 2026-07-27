@@ -7,7 +7,7 @@ import { motion } from "motion/react";
 
 import { ProgressStepper, VolumeField } from "@/components/library/progress-stepper";
 import { StatusPicker } from "@/components/library/status-picker";
-import { RatingBadge } from "@/components/rating/rating-badge";
+import { DualScore } from "@/components/rating/score";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { Segmented } from "@/components/ui/segmented";
 import type { LibraryRow } from "@/lib/queries";
@@ -297,11 +297,11 @@ function LibraryRowItem({
           </p>
 
           {rating && (rating.enjoyment != null || rating.craft != null) && (
-            <RatingBadge
+            <DualScore
               enjoyment={rating.enjoyment}
               craft={rating.craft}
               size="xs"
-              className="mt-1.5"
+              className="mt-2 max-w-28"
             />
           )}
         </div>

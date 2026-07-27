@@ -12,11 +12,11 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: {
-    default: "Stack — rate what you love and what's good",
+    default: "Stack",
     template: "%s · Stack",
   },
   description:
-    "Track anime, manga and light novels. Rate every title on two axes: how much you enjoyed it, and how well-made it is.",
+    "Track anime, manga and light novels. Rate every title on two axes: enjoyment and craft.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Stack", statusBarStyle: "black-translucent" },
 };

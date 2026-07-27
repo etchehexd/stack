@@ -11,7 +11,8 @@ import { currentSeason } from "@/lib/utils";
 /** Columns every card needs. Keeping this in one place stops query drift. */
 export const CARD_COLUMNS =
   "id, media_type, format, title_english, title_romaji, cover_image_large, " +
-  "cover_color, average_score, season_year, episodes, chapters, genres, popularity";
+  "cover_color, average_score, season_year, episodes, chapters, genres, popularity, " +
+  "synopsis";
 
 export type CardTitle = Pick<
   Title,
@@ -28,6 +29,7 @@ export type CardTitle = Pick<
   | "chapters"
   | "genres"
   | "popularity"
+  | "synopsis"
 >;
 
 /* -------------------------------------------------------------------------- */

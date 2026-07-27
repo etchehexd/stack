@@ -181,26 +181,55 @@ export function ratingSortValue(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Scatter geometry — shared by the compact pad and the full profile chart     */
+/* Display scale                                                              */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Map a rating to a 0–1 position inside the plot area.
- * x = enjoyment (left→right), y = craft (bottom→top, so we invert for SVG).
+ * EVERY score shown anywhere in this app is on a 0–10 scale with one decimal.
+ *
+ * There are two sources feeding it and they used to be displayed in their own
+ * native units, which meant a card could show "84" from AniList next to "4½"
+ * from the user and expect people to hold two scales in their head:
+ *
+ *   - the user's own axes are stored as 0.5–5.0 half-stars (the star row is
+ *     still the input, because clicking five glyphs is faster than typing a
+ *     decimal) → doubled for display
+ *   - AniList's community average is stored as an integer percentage → tenthed
+ *
+ * Format through these two functions and nowhere else.
  */
-export function toPlotPosition(enjoyment: number, craft: number) {
-  const span = RATING_MAX - RATING_MIN; // 4.5
-  return {
-    x: (enjoyment - RATING_MIN) / span,
-    y: 1 - (craft - RATING_MIN) / span,
-  };
+
+/** Star-scale value (0.5–5) → "9.0". Null-safe; returns a dash. */
+export function formatTen(value: number | null | undefined): string {
+  if (value == null) return "—";
+  return (value * 2).toFixed(1);
 }
 
-/** Inverse of toPlotPosition, snapped back onto the half-star grid. */
-export function fromPlotPosition(x: number, y: number) {
-  const span = RATING_MAX - RATING_MIN;
-  return {
-    enjoyment: snapToStep(RATING_MIN + x * span),
-    craft: snapToStep(RATING_MIN + (1 - y) * span),
-  };
+/** AniList percentage (0–100) → 8.4. Null-safe. */
+export function percentToTen(percent: number | null | undefined): number | null {
+  if (percent == null) return null;
+  return Math.round(percent) / 10;
 }
+
+/** AniList percentage (0–100) → "8.4". Null-safe; returns a dash. */
+export function formatPercentAsTen(percent: number | null | undefined): string {
+  const ten = percentToTen(percent);
+  return ten == null ? "—" : ten.toFixed(1);
+}
+
+/**
+ * Where a 0–10 score sits, for colouring it. Deliberately coarse: three bands,
+ * not a continuous ramp, so the same score is always the same colour.
+ */
+export function scoreBand(ten: number | null): "high" | "mid" | "low" | null {
+  if (ten == null) return null;
+  if (ten >= 8) return "high";
+  if (ten >= 6.5) return "mid";
+  return "low";
+}
+
+export const BAND_COLOR: Record<"high" | "mid" | "low", string> = {
+  high: "oklch(0.78 0.16 152)",
+  mid: "oklch(0.82 0.15 85)",
+  low: "oklch(0.68 0.15 25)",
+};

@@ -28,13 +28,11 @@ export function AuthForm({
 
   return (
     <GlassPanel radius="xl" className="w-full max-w-sm p-7">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {isSignup ? "Create your Stack" : "Welcome back"}
+      <h1 className="text-3xl font-bold tracking-[-0.03em]">
+        {isSignup ? "Create an account" : "Sign in"}
       </h1>
-      <p className="text-fg-3 mt-1.5 text-sm text-balance-pretty">
-        {isSignup
-          ? "Two ratings per title: how much you loved it, and how good it actually is."
-          : "Pick up where you left off."}
+      <p className="text-fg-3 mt-2 text-sm">
+        {isSignup ? "Free, and takes a few seconds." : "Welcome back."}
       </p>
 
       <form action={formAction} className="mt-6 space-y-3">

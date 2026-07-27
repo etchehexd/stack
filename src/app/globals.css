@@ -143,11 +143,11 @@ body {
 }
 
 /* The backdrop.
-   This used to be two large drifting colored orbs. They read as generic
-   "AI gradient wallpaper", fought with the cover art (which is where the colour
-   in this app should come from), and tinted every frosted panel above them.
-   Now it's a flat surface with one barely-there neutral lift at the top, purely
-   to stop a large dark area looking dead. No hue, no animation. */
+   A fine dot lattice over a flat ground. It gives large empty areas a texture
+   and a sense of depth without introducing a hue that would fight the cover
+   art — which is where all the colour in this app comes from. The dots are far
+   below the threshold where they'd compete with content; you read them as
+   "surface", not as pattern. */
 .ambient-field {
   position: fixed;
   inset: 0;
@@ -155,20 +155,37 @@ body {
   pointer-events: none;
   background:
     radial-gradient(
-      120% 60% at 50% 0%,
-      oklch(1 0 0 / 0.035) 0%,
-      transparent 60%
+      oklch(1 0 0 / 0.055) 1px,
+      transparent 1px
+    ),
+    radial-gradient(
+      130% 70% at 50% -10%,
+      oklch(1 0 0 / 0.05) 0%,
+      transparent 62%
     ),
     var(--bg-deep);
+  background-size:
+    22px 22px,
+    100% 100%,
+    100% 100%;
+  mask-image: radial-gradient(140% 100% at 50% 0%, #000 30%, transparent 100%);
 }
 :root[data-theme="light"] .ambient-field {
   background:
     radial-gradient(
-      120% 60% at 50% 0%,
-      oklch(1 0 0 / 0.7) 0%,
-      transparent 60%
+      oklch(0.3 0.02 265 / 0.075) 1px,
+      transparent 1px
+    ),
+    radial-gradient(
+      130% 70% at 50% -10%,
+      oklch(1 0 0 / 0.85) 0%,
+      transparent 62%
     ),
     var(--bg-deep);
+  background-size:
+    22px 22px,
+    100% 100%,
+    100% 100%;
 }
 
 /* --- Glass utilities ------------------------------------------------------ */
@@ -180,9 +197,19 @@ body {
    that support the standard property but not the alias (Firefox, and others)
    rendered every "glass" surface with no blur whatsoever.
    ───────────────────────────────────────────────────────────────────────── */
+/* Content panels — the big stationary cards that hold synopsis, details, the
+   rating pad. These do NOT blur.
+
+   Retuned deliberately: blur only earns its cost when something scrolls
+   underneath. A panel sitting in the page flow has nothing behind it but the
+   flat backdrop, so the filter was paying full GPU price on every scroll frame
+   to composite a blur of one solid colour. What actually reads as "glass" here
+   is the tint, the hairline and the specular rim — all of which are kept.
+
+   Blur is now reserved for surfaces that genuinely float over content:
+   glass-heavy (nav, tab bar, menus, popovers) and glass-scrim. */
 @utility glass {
   background: var(--glass-2);
-  backdrop-filter: blur(var(--blur-glass-2)) saturate(180%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-glass);
 }
@@ -251,6 +278,97 @@ body {
   &:active {
     transform: scale(0.97);
   }
+}
+
+/* The axis word — "Enjoyment", "Craft", a quadrant name.
+   These used to be coloured chips sitting next to coloured stars, which put two
+   competing blocks of the same hue side by side. As a spaced small-caps word
+   the label recedes and the data keeps the colour. Use this for any label that
+   names one of the two axes; do not restyle them per component. */
+@utility axis-caps {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+/* Section heading inside a panel. One size, one weight, everywhere. */
+@utility panel-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Page-level heading. Large, tight, confident — the thing that stops a page
+   reading as a wall of 14px text. */
+@utility page-title {
+  font-size: clamp(1.75rem, 1.25rem + 1.8vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+/* Any number meant to be READ as a figure rather than as running text: scores,
+   counts, stat tiles. Tabular so columns of them line up, tight so large sizes
+   don't fall apart. */
+@utility numeral {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ART COLOUR
+   Every title in the catalog ships a dominant colour sampled from its cover.
+   Components set it as `--art` inline; these utilities spend it. This is the
+   app's main source of colour and the reason two pages of the same layout
+   don't look the same — the artwork tints its own surroundings.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* A soft bloom of the artwork's own colour behind an element. */
+@utility art-glow {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -18% -10% -22%;
+    border-radius: inherit;
+    background: radial-gradient(
+      60% 55% at 50% 55%,
+      color-mix(in oklch, var(--art, transparent) 62%, transparent) 0%,
+      transparent 72%
+    );
+    filter: blur(22px);
+    opacity: 0;
+    transition: opacity 420ms var(--ease-glass);
+    pointer-events: none;
+    z-index: -1;
+  }
+}
+
+/* Hover state for anything clickable that holds content: rises, brightens its
+   hairline, and lights the art bloom if there is one. */
+@utility lift {
+  transition:
+    transform 320ms var(--ease-spring-out),
+    border-color 320ms var(--ease-glass),
+    box-shadow 320ms var(--ease-glass);
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: var(--glass-border-strong);
+    box-shadow: var(--shadow-lift);
+  }
+  &:hover::after {
+    opacity: 1;
+  }
+}
+
+/* A hairline that picks up the artwork colour instead of staying neutral. */
+@utility art-edge {
+  border: 1px solid color-mix(in oklch, var(--art, var(--glass-border)) 30%, var(--glass-border));
 }
 
 @utility scroll-glass {

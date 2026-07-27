@@ -16,10 +16,9 @@ export default async function LibraryPage() {
   if (!profile) {
     return (
       <GlassPanel radius="xl" className="mx-auto max-w-md p-8 text-center">
-        <h1 className="text-lg font-semibold">Your library lives here</h1>
+        <h1 className="text-lg font-bold tracking-tight">Your library</h1>
         <p className="text-fg-2 mt-2 text-sm leading-relaxed">
-          Sign in to track what you&rsquo;re watching and reading, and to rate it on
-          both axes.
+          Sign in to track what you&rsquo;re watching and reading.
         </p>
         <Link
           href="/login"
@@ -49,8 +48,8 @@ export default async function LibraryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Library</h1>
-        <p className="text-fg-3 mt-1 text-sm tabular-nums">
+        <h1 className="page-title">Library</h1>
+        <p className="text-fg-3 mt-2 text-sm tabular-nums">
           {total} {total === 1 ? "title" : "titles"} tracked
         </p>
       </div>

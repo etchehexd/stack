@@ -75,11 +75,9 @@ export default async function DiscoverPage(props: PageProps<"/discover">) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Discover</h1>
-        <p className="text-fg-3 mt-1 text-sm">
-          {query
-            ? `Results for “${query}”`
-            : "Everything in the catalog, filtered however you like."}
+        <h1 className="page-title">Discover</h1>
+        <p className="text-fg-3 mt-2 text-sm">
+          {query ? `Results for “${query}”` : `${total.toLocaleString()} titles`}
         </p>
       </div>
 
@@ -114,7 +112,7 @@ export default async function DiscoverPage(props: PageProps<"/discover">) {
 function NoResults({ query }: { query?: string }) {
   return (
     <GlassPanel radius="xl" className="p-10 text-center">
-      <h2 className="text-lg font-semibold">Nothing matched</h2>
+      <h2 className="text-lg font-bold tracking-tight">Nothing matched</h2>
       <p className="text-fg-3 mx-auto mt-2 max-w-md text-sm leading-relaxed">
         {query
           ? `No titles came close to “${query}”. Search is typo-tolerant, so if this is a real title it may just not be in the catalog yet — run a deeper sync to pull more.`
