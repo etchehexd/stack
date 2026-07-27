@@ -26,6 +26,8 @@ export interface TitleCardProps {
   title: TitleCardData;
   /** The viewer's own 0–10 score. Replaces the catalog average when present. */
   score?: number | null;
+  /** Position in a ranked shelf. Drawn as an outlined numeral over the art. */
+  rank?: number;
   footer?: React.ReactNode;
   priority?: boolean;
   className?: string;
@@ -34,17 +36,19 @@ export interface TitleCardProps {
 /**
  * A poster.
  *
- * The score sits in the bottom-left corner of the art as a bare numeral with a
- * short colour rule under it — no pill, no plate, no background. That keeps it
- * to roughly two characters' worth of the poster while still being the first
- * thing you can read, because it's the only text on the image.
+ * The art carries two things and no more: the score dial top right, and a rank
+ * numeral bottom left when the shelf is ranked. Top right is reserved for the
+ * score everywhere in the app — it is the one place your eye can go on any
+ * card, on any page, and find the same fact.
  *
- * A viewer's own score displaces the catalog average and is drawn in its band
- * colour rather than white, so the two can never be mistaken for each other.
+ * Everything else is hover state: the artwork pushes in, its own sampled colour
+ * washes up from the bottom, and the genres fade in. Idle, the wall of posters
+ * stays quiet; the card you're pointing at is the only one doing anything.
  */
 export function TitleCard({
   title,
   score,
+  rank,
   footer,
   priority = false,
   className,
@@ -52,6 +56,7 @@ export function TitleCard({
   const accent = mediaAccent(title.media_type);
   const name = displayTitle(title);
   const art = title.cover_color ?? accent;
+  const genres = title.genres?.slice(0, 2) ?? [];
 
   return (
     <article
@@ -60,7 +65,7 @@ export function TitleCard({
     >
       <Link
         href={`/title/${title.id}`}
-        className="art-glow art-edge lift relative block aspect-[2/3] overflow-hidden rounded-xl"
+        className="art-glow art-edge lift relative block aspect-[2/3] overflow-hidden rounded-lg"
         style={{ background: art }}
       >
         {title.cover_image_large ? (
@@ -69,8 +74,8 @@ export function TitleCard({
             alt=""
             fill
             priority={priority}
-            sizes="(max-width: 640px) 40vw, 200px"
-            className="object-cover transition-transform duration-[600ms] [transition-timing-function:var(--ease-glass)] group-hover/card:scale-[1.06]"
+            sizes="(max-width: 640px) 40vw, 220px"
+            className="object-cover transition-transform duration-[700ms] [transition-timing-function:var(--ease-glass)] group-hover/card:scale-[1.07]"
           />
         ) : (
           <div className="text-fg-3 grid size-full place-items-center p-2 text-center text-xs">
@@ -78,29 +83,59 @@ export function TitleCard({
           </div>
         )}
 
-        {/* Just enough scrim to carry the numeral, kept to the bottom third. */}
+        {/* Idle scrim: bottom third only, and only enough to seat the rank
+            numeral and keep the hover chips off bare artwork. */}
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[38%]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3"
           style={{
             background:
-              "linear-gradient(to top, oklch(0 0 0 / 0.82) 0%, oklch(0 0 0 / 0.35) 55%, transparent 100%)",
+              "linear-gradient(to top, oklch(0 0 0 / 0.72) 0%, oklch(0 0 0 / 0.22) 55%, transparent 100%)",
           }}
           aria-hidden
         />
 
-        <span
-          className="absolute inset-x-0 top-0 h-[3px]"
-          style={{ background: accent }}
+        {/* Hover wash in the artwork's own colour. */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover/card:opacity-100"
+          style={{
+            background: `linear-gradient(to top, color-mix(in oklch, var(--art) 55%, oklch(0 0 0 / 0.85)) 0%, transparent 48%)`,
+          }}
           aria-hidden
         />
 
-        <div className="absolute bottom-2 left-2.5">
+        <div className="absolute top-1.5 right-1.5">
           {score != null ? (
             <ScoreChip score={score} mine size="md" />
           ) : (
             <ScoreChip percent={title.average_score} size="md" />
           )}
         </div>
+
+        {rank != null && (
+          <span className="rank-numeral absolute bottom-0 left-1.5" aria-hidden>
+            {rank}
+          </span>
+        )}
+
+        {/* Ranked cards keep their corner for the numeral — two things fighting
+            over the bottom left is worse than losing the genres on ten posters. */}
+        {rank == null && genres.length > 0 && (
+          <div className="pointer-events-none absolute inset-x-2 bottom-2 flex translate-y-1 flex-wrap gap-1 opacity-0 transition-[opacity,transform] duration-400 [transition-timing-function:var(--ease-glass)] group-hover/card:translate-y-0 group-hover/card:opacity-100">
+            {genres.map((genre) => (
+              <span
+                key={genre}
+                className="rounded-pill px-1.5 py-0.5 text-[9.5px] font-semibold tracking-wide"
+                style={{
+                  background: "oklch(1 0 0 / 0.16)",
+                  color: "oklch(1 0 0 / 0.95)",
+                  backdropFilter: "blur(var(--blur-glass-1))",
+                }}
+              >
+                {genre}
+              </span>
+            ))}
+          </div>
+        )}
       </Link>
 
       <div className="min-w-0">
@@ -111,10 +146,15 @@ export function TitleCard({
           {name}
         </Link>
         <p className="text-fg-3 mt-1 flex items-center gap-1.5 text-[11px]">
-          <span>{formatLabel(title.format)}</span>
+          <span
+            className="size-1.5 shrink-0 rounded-full"
+            style={{ background: accent }}
+            aria-hidden
+          />
+          <span className="truncate">{formatLabel(title.format)}</span>
           {title.season_year && (
             <>
-              <span aria-hidden className="opacity-50">
+              <span aria-hidden className="opacity-40">
                 ·
               </span>
               <span className="tabular-nums">{title.season_year}</span>

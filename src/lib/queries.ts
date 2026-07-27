@@ -99,6 +99,58 @@ export async function getThisSeason(limit = 18): Promise<CardTitle[]> {
   return (data ?? []) as unknown as CardTitle[];
 }
 
+/**
+ * The handful of titles the home page opens with.
+ *
+ * Wider than a card: the hero is the one place a banner image, the studio and
+ * the next episode are worth fetching, and it's a fixed five rows rather than a
+ * shelf. Falls back to recent popular anime when the season table is thin (a
+ * fresh database, or a sync that hasn't run this season yet) so the top of the
+ * page is never empty.
+ */
+export type SpotlightTitle = CardTitle &
+  Pick<Title, "banner_image" | "studios" | "next_airing_at" | "next_airing_ep" | "status">;
+
+const SPOTLIGHT_COLUMNS = `${CARD_COLUMNS}, banner_image, studios, next_airing_at, next_airing_ep, status`;
+
+export async function getSpotlight(limit = 5): Promise<SpotlightTitle[]> {
+  const supabase = await createClient();
+  const { season, year } = currentSeason();
+
+  const seasonal = await supabase
+    .from("titles")
+    .select(SPOTLIGHT_COLUMNS)
+    .eq("media_type", "anime")
+    .eq("season", season)
+    .eq("season_year", year)
+    .eq("is_adult", false)
+    .not("cover_image_large", "is", null)
+    .order("popularity", { ascending: false, nullsFirst: false })
+    .limit(limit);
+
+  if (seasonal.error) {
+    console.error("[getSpotlight]", seasonal.error.message);
+  } else if ((seasonal.data?.length ?? 0) >= 3) {
+    return seasonal.data as unknown as SpotlightTitle[];
+  }
+
+  const { data, error } = await supabase
+    .from("titles")
+    .select(SPOTLIGHT_COLUMNS)
+    .eq("media_type", "anime")
+    .eq("is_adult", false)
+    .not("cover_image_large", "is", null)
+    .gte("season_year", new Date().getFullYear() - 1)
+    .order("popularity", { ascending: false, nullsFirst: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[getSpotlight fallback]", error.message);
+    return [];
+  }
+  return (data ?? []) as unknown as SpotlightTitle[];
+}
+
 /* -------------------------------------------------------------------------- */
 /* Discover                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -329,6 +381,45 @@ export async function getLibrary(userId: string, mediaType: MediaType) {
   return (data ?? []) as unknown as LibraryRow[];
 }
 
+export interface ContinueRow {
+  title_id: string;
+  status: string;
+  progress: number;
+  updated_at: string;
+  titles: CardTitle & { next_airing_at: string | null; next_airing_ep: number | null };
+}
+
+/**
+ * What the viewer is part-way through, most recently touched first.
+ *
+ * This is the home page's reason to exist on a Tuesday: the thing you were
+ * watching last night, with the +1 attached to it. Deliberately not filtered by
+ * media type — a mixed list is the honest answer to "where was I".
+ */
+export async function getContinueWatching(
+  userId: string,
+  limit = 8,
+): Promise<ContinueRow[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("library_entries")
+    .select(
+      `title_id, status, progress, updated_at,
+       titles!inner(${CARD_COLUMNS}, next_airing_at, next_airing_ep)`,
+    )
+    .eq("user_id", userId)
+    .in("status", ["watching", "repeating"])
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[getContinueWatching]", error.message);
+    return [];
+  }
+  return (data ?? []) as unknown as ContinueRow[];
+}
+
 export async function getRatingsMap(userId: string) {
   const supabase = await createClient();
   const { data } = await supabase
@@ -382,6 +473,21 @@ export async function getAiringWeek() {
   to.setDate(to.getDate() + 7);
 
   return { now, from, to, rows: await getAiringWindow(from, to) };
+}
+
+/**
+ * Today's episodes, measured from local midnight so "today" means the day you
+ * are looking at rather than the next 24 hours. Returns the reference instant
+ * alongside the rows so every countdown on the page is measured from one clock.
+ */
+export async function getAiringToday() {
+  const now = Date.now();
+  const from = new Date(now);
+  from.setHours(0, 0, 0, 0);
+  const to = new Date(from);
+  to.setDate(to.getDate() + 1);
+
+  return { now, rows: await getAiringWindow(from, to) };
 }
 
 /** Title ids the viewer is currently watching — used to highlight the calendar. */

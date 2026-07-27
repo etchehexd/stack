@@ -385,6 +385,49 @@ body {
   border: 1px solid color-mix(in oklch, var(--art, var(--glass-border)) 30%, var(--glass-border));
 }
 
+/* The trailing edge of a horizontal shelf.
+   A row that continues off-screen should look like it continues, rather than
+   being guillotined by the viewport. The mask only bites where content actually
+   reaches the edge, so a short row that doesn't overflow is unaffected. */
+@utility shelf-fade {
+  mask-image: linear-gradient(
+    to right,
+    #000 0 calc(100% - 3.5rem),
+    transparent 100%
+  );
+}
+
+/* The rank numeral on a ranked shelf.
+   Translucent fill plus a hard white outline: the fill keeps it visible if the
+   stroke isn't supported, and the outline keeps it legible over any artwork
+   without putting a solid block of white on the poster.
+
+   `-webkit-text-stroke` is the ONE hand-written prefix allowed in this file —
+   there is no standard property for it, so Lightning CSS has nothing to
+   generate from. Do not take it as licence to add others; see @utility glass. */
+@utility rank-numeral {
+  font-size: clamp(2.5rem, 1.9rem + 2.2vw, 3.5rem);
+  font-weight: 800;
+  line-height: 0.72;
+  letter-spacing: -0.07em;
+  font-variant-numeric: tabular-nums;
+  color: oklch(1 0 0 / 0.15);
+  -webkit-text-stroke: 1.5px oklch(1 0 0 / 0.9);
+  text-shadow: 0 2px 14px oklch(0 0 0 / 0.6);
+  pointer-events: none;
+}
+
+/* The spotlight's slide timer — a bar that fills over the dwell time. Keyed on
+   the slide index so it restarts on every change. */
+@keyframes slide-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 @utility scroll-glass {
   scrollbar-width: thin;
   scrollbar-color: var(--glass-border-strong) transparent;
