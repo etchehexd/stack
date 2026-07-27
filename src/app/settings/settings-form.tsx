@@ -22,7 +22,7 @@ export function SettingsForm({ profile }: { profile: Profile }) {
   return (
     <form action={action} className="space-y-5">
       <GlassPanel radius="xl" className="space-y-4 p-6">
-        <h2 className="text-base font-semibold tracking-tight">Profile</h2>
+        <h2 className="panel-title">Profile</h2>
 
         <label className="block">
           <span className="text-fg-2 mb-1.5 block text-xs font-medium">
@@ -58,7 +58,7 @@ export function SettingsForm({ profile }: { profile: Profile }) {
       </GlassPanel>
 
       <GlassPanel radius="xl" className="space-y-4 p-6">
-        <h2 className="text-base font-semibold tracking-tight">Ratings</h2>
+        <h2 className="panel-title">Ratings</h2>
 
         <Toggle
           name="overallSortEnabled"

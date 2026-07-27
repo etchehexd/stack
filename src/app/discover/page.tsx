@@ -10,7 +10,7 @@ import { getFacets, searchTitles } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getRatingsMap } from "@/lib/queries";
 import type { MediaType } from "@/lib/types/database";
-import { parseTriSet } from "@/components/ui/tri-state-chip";
+import { parseTriSet } from "@/lib/tri-state";
 
 export const metadata: Metadata = {
   title: "Discover",

@@ -12,7 +12,7 @@ import { cva, type VariantProps } from "class-variance-authority";
  * goes in button.tsx.
  */
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 font-medium whitespace-nowrap " +
+  "inline-flex items-center justify-center gap-2 font-semibold tracking-tight whitespace-nowrap " +
     "select-none disabled:pointer-events-none disabled:opacity-45 " +
     "transition-[transform,background,box-shadow,border-color] duration-200 " +
     "[transition-timing-function:var(--ease-glass)] active:scale-[0.97]",
@@ -25,9 +25,9 @@ export const buttonVariants = cva(
           "border border-hairline",
         /** The one loud button per screen. */
         primary:
-          "text-white border border-transparent " +
-          "bg-[color-mix(in_oklch,var(--accent)_88%,transparent)] " +
-          "hover:bg-[var(--accent)] shadow-[0_6px_20px_-6px_var(--accent)]",
+          "text-white border border-transparent bg-[var(--accent)] " +
+          "shadow-[0_8px_26px_-8px_var(--accent)] " +
+          "hover:brightness-110 hover:shadow-[0_10px_30px_-8px_var(--accent)]",
         ghost: "text-fg-2 hover:text-fg hover:bg-[var(--glass-1)]",
         danger:
           "text-white border border-transparent " +

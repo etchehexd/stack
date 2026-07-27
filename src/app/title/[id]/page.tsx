@@ -265,7 +265,7 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
           className="flex flex-wrap items-center justify-between gap-4 p-5"
         >
           <p className="text-fg-2 text-sm">
-            Sign in to track this and rate it on both axes.
+            Sign in to track and rate this.
           </p>
           <Link href="/login" className={buttonVariants({ variant: "primary" })}>
             Sign in

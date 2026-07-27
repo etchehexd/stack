@@ -45,7 +45,6 @@ export function AppShell({
           </Link>
           . Not affiliated.
         </p>
-        <p>Rate what you love. Rate what&rsquo;s good. They&rsquo;re not the same.</p>
       </footer>
 
       <MobileTabBar signedIn={Boolean(profile)} username={profile?.username ?? null} />

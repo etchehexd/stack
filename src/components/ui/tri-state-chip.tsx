@@ -4,6 +4,7 @@ import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { nextTriState, type TriState } from "@/lib/tri-state";
 
 /**
  * Tri-state filter chip — the signature Discover interaction.
@@ -14,18 +15,6 @@ import { cn } from "@/lib/utils";
  * and icon), not by colour alone, so the state is unambiguous at a glance and
  * still readable for colour-blind users.
  */
-export type TriState = "neutral" | "include" | "exclude";
-
-export const TRI_CYCLE: Record<TriState, TriState> = {
-  neutral: "include",
-  include: "exclude",
-  exclude: "neutral",
-};
-
-export function nextTriState(current: TriState): TriState {
-  return TRI_CYCLE[current];
-}
-
 const STATE_LABEL: Record<TriState, string> = {
   neutral: "not filtered",
   include: "included",
@@ -124,56 +113,5 @@ export function TriStateChip({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* State container                                                            */
-/* -------------------------------------------------------------------------- */
-
-export interface TriStateSet {
-  include: string[];
-  exclude: string[];
-}
-
-export const EMPTY_TRI_SET: TriStateSet = { include: [], exclude: [] };
-
-export function triStateOf(set: TriStateSet, value: string): TriState {
-  if (set.include.includes(value)) return "include";
-  if (set.exclude.includes(value)) return "exclude";
-  return "neutral";
-}
-
-/** Immutably move `value` into its new bucket. */
-export function applyTriState(
-  set: TriStateSet,
-  value: string,
-  next: TriState,
-): TriStateSet {
-  const include = set.include.filter((v) => v !== value);
-  const exclude = set.exclude.filter((v) => v !== value);
-  if (next === "include") include.push(value);
-  if (next === "exclude") exclude.push(value);
-  return { include, exclude };
-}
-
-export function triSetSize(set: TriStateSet) {
-  return set.include.length + set.exclude.length;
-}
-
-/** Serialize for the URL: "Action,Comedy!Ecchi" (! prefixes exclusions). */
-export function serializeTriSet(set: TriStateSet): string | null {
-  const parts = [
-    ...set.include.map(encodeURIComponent),
-    ...set.exclude.map((v) => `!${encodeURIComponent(v)}`),
-  ];
-  return parts.length ? parts.join(",") : null;
-}
-
-export function parseTriSet(raw: string | null | undefined): TriStateSet {
-  if (!raw) return EMPTY_TRI_SET;
-  const set: TriStateSet = { include: [], exclude: [] };
-  for (const part of raw.split(",")) {
-    if (!part) continue;
-    if (part.startsWith("!")) set.exclude.push(decodeURIComponent(part.slice(1)));
-    else set.include.push(decodeURIComponent(part));
-  }
-  return set;
-}
+/* Re-exported so client components can keep a single import site. */
+export * from "@/lib/tri-state";

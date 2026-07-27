@@ -18,7 +18,7 @@ export default function Error({
   return (
     <div className="flex min-h-[60dvh] items-center justify-center">
       <GlassPanel radius="xl" className="max-w-md p-10 text-center">
-        <h1 className="text-xl font-semibold tracking-tight">Something broke</h1>
+        <h1 className="text-3xl font-bold tracking-[-0.03em]">Something broke</h1>
         <p className="text-fg-3 mt-2 text-sm leading-relaxed">
           {error.message || "An unexpected error occurred."}
         </p>
