@@ -110,6 +110,28 @@ npm run sync:airing     # airing schedule only (cheap; good daily cron)
 npm run sync:relations  # backfill franchise links
 ```
 
+## Deploying
+
+Repo: <https://github.com/etchehexd/stack> (private, default branch `main`).
+The Next.js app is at the repository root, so Vercel needs no root-directory
+configuration.
+
+Once Vercel is connected (see [`MANUAL_SETUP.md`](./MANUAL_SETUP.md) §7), every
+push to `main` deploys to production and every PR gets a preview URL:
+
+```bash
+git add -A
+git commit -m "your message"
+git push
+```
+
+Two things that are **not** part of a deploy:
+
+- **Schema changes.** `supabase/schema.sql` is run by hand in the Supabase SQL
+  editor. It's written to be safely re-runnable.
+- **The full catalog sync.** `npm run sync:seed` runs from your machine and
+  writes straight to Supabase. Vercel's daily cron only does the light refresh.
+
 ## Notes
 
 - Title data comes from [AniList](https://anilist.co). This project isn't

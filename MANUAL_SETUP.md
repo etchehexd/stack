@@ -120,17 +120,58 @@ Open <http://localhost:3000>, create an account, and rate something.
 
 ---
 
-## 7. Deploying (when you're ready)
+## 7. Deploying
 
-**Vercel:**
+The repo is already on GitHub at <https://github.com/etchehexd/stack> (private,
+default branch `main`). The Next.js app is at the **repository root**, so Vercel
+detects it with no extra configuration.
 
-1. Push this repo to GitHub, then import it at <https://vercel.com/new>.
-2. Add all five environment variables from `.env.local` to the Vercel project
-   (**Settings → Environment Variables**). Set `NEXT_PUBLIC_SITE_URL` to your
-   real Vercel URL, not localhost.
-3. Deploy.
+### Connect Vercel
 
-**After the first deploy:**
+1. Go to <https://vercel.com/new> and **Import** `etchehexd/stack`. Grant Vercel
+   access to the repo when GitHub asks — private repos work fine.
+2. Framework preset should auto-fill as **Next.js**. Leave Root Directory empty.
+3. Before the first deploy, add your environment variables. The fastest way is
+   the **Supabase integration** (next section) for the three Supabase values,
+   then add these two by hand under **Settings → Environment Variables**:
+   - `NEXT_PUBLIC_SITE_URL` — your real Vercel URL, *not* localhost
+   - `CRON_SECRET` — the same value as in `.env.local`
+4. Deploy.
+
+From then on, **every push to `main` deploys to production automatically**, and
+every pull request gets its own preview URL.
+
+```bash
+git add -A
+git commit -m "your message"
+git push
+# → Vercel builds and deploys
+```
+
+### Connect Supabase
+
+Use the official integration rather than copying keys by hand — it keeps them in
+sync if you ever rotate them:
+
+1. In the **Vercel** dashboard, open your project → **Integrations** → **Browse
+   Marketplace** → **Supabase** → **Add Integration**.
+2. Pick your Vercel project and your Supabase project, and authorize.
+3. It writes `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
+   `SUPABASE_SERVICE_ROLE_KEY` into the Vercel project for you.
+
+> **Check the variable names after it runs.** The integration has historically
+> used `SUPABASE_URL` / `SUPABASE_ANON_KEY` in some configurations. This app
+> reads the `NEXT_PUBLIC_`-prefixed names in `.env.example` — the prefix is
+> required for the browser client to see them. If the names don't match, add
+> the correctly-named ones manually and redeploy.
+
+Optionally, connect Supabase to GitHub too (**Supabase dashboard → Project
+Settings → Integrations → GitHub**) so schema changes in `supabase/` can be
+applied on merge. That needs the Supabase CLI and a `supabase/migrations/`
+folder; right now the schema is one file you run by hand, which is simpler
+while you're the only developer.
+
+### After the first deploy
 
 - Add `https://YOUR-APP.vercel.app/auth/callback` to the Supabase redirect URLs
   (step 4) and change the Supabase **Site URL** to your Vercel URL.
@@ -155,3 +196,12 @@ called `avatars` in the Supabase dashboard first.
 | Sign-in does nothing | Email confirmation is on and you haven't clicked the link | Check your inbox, or disable confirmation for local dev |
 | OAuth button errors | Provider not enabled | Step 4, or remove the buttons |
 | Filter chips are empty on Discover | `facets` view never refreshed | Run `refresh materialized view public.facets;` in the SQL editor |
+| Deployed site shows "catalog is empty" but local works | Vercel points at a different Supabase project, or env vars are missing | Compare the Vercel env vars against `.env.local`; redeploy after changing them (env changes don't apply to existing builds) |
+| Build fails on Vercel but passes locally | Missing env var, or a case-sensitive import path | Vercel builds on Linux, which is case-sensitive; check the build log for the exact file |
+| Sign-in works locally, fails on the deployed site | Redirect URL / Site URL still pointing at localhost | Supabase → Authentication → URL Configuration |
+| Cron sync returns 401 | `CRON_SECRET` not set in Vercel, or differs from the one you're testing with | Add it under Settings → Environment Variables and redeploy |
+
+> **The big `sync:seed` is a local job, not a deploy job.** It writes straight to
+> Supabase, so run it once from your machine. Vercel's daily cron only does the
+> light refresh (current season + airing schedule), which is all it has time for
+> inside a serverless function.
