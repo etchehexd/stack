@@ -6,6 +6,11 @@ minutes, most of which is waiting for the AniList sync.
 Nothing here assumes prior Supabase experience. Where a step is easy to get
 wrong, there's a "how to tell it worked" note.
 
+> **On Windows PowerShell:** chain commands with `;`, not `&&`. So
+> `cd stack-app; npm run doctor` — `&&` is a bash thing and PowerShell 5.1
+> rejects it. Every command in this file is a single command, so it only
+> matters if you're combining them.
+
 ---
 
 ## 1. Create the Supabase project
