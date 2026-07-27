@@ -68,7 +68,10 @@ See `VolumeField` in `src/components/library/progress-stepper.tsx`.
 | **Hand-built glass primitives instead of the shadcn/ui CLI.** shadcn components are opaque-surface-first; retrofitting the blur/specular/depth system onto them meant rewriting most of each one anyway. The primitives in `src/components/ui/` follow the same composition patterns (cva variants, forwardRef, `cn()`), so `npx shadcn add` still works if you want to pull in something specific later. | `src/components/ui/` |
 | **Four blur levels, seven radii, one specular treatment.** Enforced by tokens rather than convention. | `src/app/globals.css` |
 | Media accents: anime = periwinkle, manga = rose, light novels = jade. Rating axes: Enjoyment = warm amber, Craft = cool cyan (heart vs. head). | `@theme` block in `globals.css` |
-| The **ambient background orbs** are two CSS pseudo-elements on a fixed layer, so the glass has something to refract without a per-page cost. | `.ambient-field` in `globals.css` |
+| **Glass fills are mostly opaque (0.62 / 0.82 / 0.93).** The frosted look comes from blur, saturation and the specular rim — not from transparency. Anything much lower lets scrolling content read through floating panels, which looks broken rather than layered. | `--glass-1/2/3` in `globals.css` |
+| **Blur only floats, tint insets.** `glass` and `glass-heavy` blur; `glass-subtle` deliberately has *no* `backdrop-filter`, because nesting one blur inside another is what produces smeared, overlapping artifacts. | `@utility glass-subtle` |
+| **No decorative gradients on large surfaces.** The background is flat with one faint neutral lift; empty profile banners and missing title banners are flat tints. Colour comes from cover art and from the accents, which carry meaning. | `.ambient-field`, profile/title banner fallbacks |
+| **Never hand-write vendor prefixes in `globals.css`.** Lightning CSS (via Tailwind v4) adds them from your browser targets. Writing `-webkit-backdrop-filter` alongside the standard property made it keep only the prefixed one — see the note below. | comment above `@utility glass` |
 
 ## Deviations from your spec
 

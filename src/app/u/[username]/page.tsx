@@ -82,14 +82,10 @@ export default async function ProfilePage(props: PageProps<"/u/[username]">) {
               className="object-cover"
             />
           ) : (
-            <div
-              className="size-full"
-              style={{
-                background:
-                  "linear-gradient(120deg, var(--color-anime), var(--color-manga) 60%, var(--color-ln))",
-                opacity: 0.35,
-              }}
-            />
+            // No banner uploaded: a plain tinted surface. This used to be a
+            // three-colour anime/manga/LN gradient, which read as decoration
+            // rather than information.
+            <div className="size-full bg-[var(--glass-1)]" />
           )}
         </div>
 

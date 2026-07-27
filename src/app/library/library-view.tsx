@@ -242,14 +242,22 @@ function LibraryRowItem({
       <GlassPanel
         level="subtle"
         radius="md"
-        className="relative flex items-center gap-3 overflow-hidden p-2.5 sm:gap-4"
+        className="relative flex items-center gap-3 p-2.5 sm:gap-4"
       >
-        {/* progress fill behind the row */}
+        {/*
+          Progress fill behind the row. The clipping lives on this wrapper, NOT
+          on the panel — `overflow-hidden` on the panel would also clip the
+          status dropdown, which opens downward out of the row.
+        */}
         <div
-          className="pointer-events-none absolute inset-y-0 left-0 opacity-[0.07]"
-          style={{ width: `${pct}%`, background: mediaAccent(title.media_type) }}
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-md"
           aria-hidden
-        />
+        >
+          <div
+            className="h-full opacity-[0.13]"
+            style={{ width: `${pct}%`, background: mediaAccent(title.media_type) }}
+          />
+        </div>
 
         <Link
           href={`/title/${title.id}`}

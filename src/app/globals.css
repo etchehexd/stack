@@ -53,18 +53,21 @@
   --text-secondary: oklch(0.78 0.012 265);
   --text-tertiary: oklch(0.62 0.014 265);
 
-  --glass-1: oklch(1 0 0 / 0.045);
-  --glass-2: oklch(1 0 0 / 0.075);
-  --glass-3: oklch(1 0 0 / 0.11);
-  --glass-hover: oklch(1 0 0 / 0.145);
+  /* Glass fills are TINTED SURFACES, not veils. They're mostly opaque on
+     purpose: the frosted look comes from the blur, the saturation boost and the
+     specular rim — not from being see-through. Anything below ~0.6 alpha lets
+     scrolling content read through floating panels, which looks like a bug. */
+  --glass-1: oklch(0.235 0.014 265 / 0.62); /* inset — no blur, see @utility */
+  --glass-2: oklch(0.245 0.015 265 / 0.82); /* cards, panels */
+  --glass-3: oklch(0.265 0.016 265 / 0.93); /* floats above content */
+  --glass-hover: oklch(0.31 0.018 265 / 0.95);
 
-  --glass-border: oklch(1 0 0 / 0.11);
-  --glass-border-strong: oklch(1 0 0 / 0.2);
-  --glass-specular: oklch(1 0 0 / 0.16);
+  --glass-border: oklch(1 0 0 / 0.09);
+  --glass-border-strong: oklch(1 0 0 / 0.18);
+  --glass-specular: oklch(1 0 0 / 0.13);
 
-  --shadow-glass: 0 1px 1px oklch(0 0 0 / 0.25), 0 8px 24px -8px oklch(0 0 0 / 0.5),
-    0 24px 60px -20px oklch(0 0 0 / 0.55);
-  --shadow-lift: 0 2px 4px oklch(0 0 0 / 0.3), 0 16px 40px -12px oklch(0 0 0 / 0.6);
+  --shadow-glass: 0 1px 1px oklch(0 0 0 / 0.2), 0 6px 18px -8px oklch(0 0 0 / 0.42);
+  --shadow-lift: 0 2px 4px oklch(0 0 0 / 0.26), 0 12px 30px -12px oklch(0 0 0 / 0.5);
 
   --accent: oklch(0.72 0.17 250);
   --danger: oklch(0.66 0.19 25);
@@ -81,20 +84,21 @@
   --text-secondary: oklch(0.42 0.018 265);
   --text-tertiary: oklch(0.56 0.016 265);
 
-  --glass-1: oklch(1 0 0 / 0.5);
-  --glass-2: oklch(1 0 0 / 0.66);
-  --glass-3: oklch(1 0 0 / 0.8);
-  --glass-hover: oklch(1 0 0 / 0.92);
+  /* Inset surfaces need to read as recessed against a near-white panel, so
+     this is a light grey rather than more white. */
+  --glass-1: oklch(0.935 0.005 265 / 0.88);
+  --glass-2: oklch(1 0 0 / 0.9);
+  --glass-3: oklch(1 0 0 / 0.96);
+  --glass-hover: oklch(0.97 0.004 265 / 0.98);
 
-  --glass-border: oklch(0.3 0.02 265 / 0.1);
-  --glass-border-strong: oklch(0.3 0.02 265 / 0.2);
+  --glass-border: oklch(0.3 0.02 265 / 0.12);
+  --glass-border-strong: oklch(0.3 0.02 265 / 0.22);
   --glass-specular: oklch(1 0 0 / 0.9);
 
-  --shadow-glass: 0 1px 2px oklch(0.3 0.02 265 / 0.06),
-    0 8px 24px -8px oklch(0.3 0.02 265 / 0.14),
-    0 24px 60px -20px oklch(0.3 0.02 265 / 0.16);
+  --shadow-glass: 0 1px 2px oklch(0.3 0.02 265 / 0.07),
+    0 6px 18px -8px oklch(0.3 0.02 265 / 0.14);
   --shadow-lift: 0 2px 6px oklch(0.3 0.02 265 / 0.1),
-    0 16px 40px -12px oklch(0.3 0.02 265 / 0.2);
+    0 12px 30px -12px oklch(0.3 0.02 265 / 0.18);
 
   --accent: oklch(0.55 0.19 260);
   --danger: oklch(0.55 0.2 25);
@@ -138,83 +142,70 @@ body {
   border-radius: var(--radius-xs);
 }
 
-/* The ambient backdrop: soft colored orbs behind everything, so the frosted
-   panels have something to refract. Fixed, non-interactive, GPU-cheap. */
+/* The backdrop.
+   This used to be two large drifting colored orbs. They read as generic
+   "AI gradient wallpaper", fought with the cover art (which is where the colour
+   in this app should come from), and tinted every frosted panel above them.
+   Now it's a flat surface with one barely-there neutral lift at the top, purely
+   to stop a large dark area looking dead. No hue, no animation. */
 .ambient-field {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  overflow: hidden;
-  background: var(--bg-deep);
+  background:
+    radial-gradient(
+      120% 60% at 50% 0%,
+      oklch(1 0 0 / 0.035) 0%,
+      transparent 60%
+    ),
+    var(--bg-deep);
 }
-.ambient-field::before,
-.ambient-field::after {
-  content: "";
-  position: absolute;
-  width: 62vmax;
-  height: 62vmax;
-  border-radius: 50%;
-  filter: blur(90px);
-  opacity: 0.38;
-  will-change: transform;
-}
-.ambient-field::before {
-  background: radial-gradient(circle, var(--color-anime), transparent 68%);
-  top: -24vmax;
-  left: -14vmax;
-  animation: drift-a 36s var(--ease-glass) infinite alternate;
-}
-.ambient-field::after {
-  background: radial-gradient(circle, var(--color-manga), transparent 68%);
-  bottom: -26vmax;
-  right: -16vmax;
-  animation: drift-b 44s var(--ease-glass) infinite alternate;
-}
-:root[data-theme="light"] .ambient-field::before,
-:root[data-theme="light"] .ambient-field::after {
-  opacity: 0.2;
-}
-
-@keyframes drift-a {
-  to {
-    transform: translate3d(14vmax, 10vmax, 0) scale(1.15);
-  }
-}
-@keyframes drift-b {
-  to {
-    transform: translate3d(-12vmax, -8vmax, 0) scale(1.1);
-  }
+:root[data-theme="light"] .ambient-field {
+  background:
+    radial-gradient(
+      120% 60% at 50% 0%,
+      oklch(1 0 0 / 0.7) 0%,
+      transparent 60%
+    ),
+    var(--bg-deep);
 }
 
 /* --- Glass utilities ------------------------------------------------------ */
+/* ─────────────────────────────────────────────────────────────────────────
+   DO NOT hand-write `-webkit-backdrop-filter` (or any other vendor prefix)
+   in this file. Tailwind v4 runs Lightning CSS, which adds prefixes itself
+   based on the browser targets. Writing both caused it to keep ONLY the
+   -webkit- version and drop the standard `backdrop-filter` — so browsers
+   that support the standard property but not the alias (Firefox, and others)
+   rendered every "glass" surface with no blur whatsoever.
+   ───────────────────────────────────────────────────────────────────────── */
 @utility glass {
   background: var(--glass-2);
   backdrop-filter: blur(var(--blur-glass-2)) saturate(180%);
-  -webkit-backdrop-filter: blur(var(--blur-glass-2)) saturate(180%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-glass);
 }
 
+/* Inset surface — chips, inputs, rows INSIDE an already-frosted panel.
+   Deliberately has NO backdrop-filter: nesting one blur inside another is what
+   produces the smeared, overlapping-content artifacts. Rule of thumb:
+   blur only what floats above the page; tint what sits inside a panel. */
 @utility glass-subtle {
   background: var(--glass-1);
-  backdrop-filter: blur(var(--blur-glass-1)) saturate(160%);
-  -webkit-backdrop-filter: blur(var(--blur-glass-1)) saturate(160%);
   border: 1px solid var(--glass-border);
 }
 
 @utility glass-heavy {
   background: var(--glass-3);
   backdrop-filter: blur(var(--blur-glass-3)) saturate(200%);
-  -webkit-backdrop-filter: blur(var(--blur-glass-3)) saturate(200%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-glass);
 }
 
 @utility glass-scrim {
-  background: oklch(0 0 0 / 0.4);
+  background: oklch(0 0 0 / 0.45);
   backdrop-filter: blur(var(--blur-glass-4)) saturate(120%);
-  -webkit-backdrop-filter: blur(var(--blur-glass-4)) saturate(120%);
 }
 
 /* The specular highlight — a 1px light rim along the top edge. This is what
@@ -236,10 +227,9 @@ body {
       transparent 68%,
       oklch(1 0 0 / 0.06) 100%
     );
-    -webkit-mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
+    /* Standard syntax only — Lightning CSS emits the -webkit- equivalents
+       (including translating `exclude` to the legacy `xor`). See the note on
+       @utility glass above. */
     mask:
       linear-gradient(#000 0 0) content-box,
       linear-gradient(#000 0 0);

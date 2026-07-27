@@ -100,14 +100,16 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
             className="object-cover"
           />
         ) : (
+          // No banner art: a flat wash of the cover's own dominant colour,
+          // heavily muted. One hue, taken from the artwork — not a synthetic
+          // multi-stop gradient.
           <div
-            className="size-full"
-            style={{
-              background: `linear-gradient(135deg, ${title.cover_color ?? accent}, transparent 70%)`,
-            }}
+            className="size-full opacity-25"
+            style={{ background: title.cover_color ?? "var(--glass-1)" }}
           />
         )}
-        <div className="from-bg-deep via-bg-deep/70 absolute inset-0 bg-gradient-to-t to-transparent" />
+        {/* Scrim so the title text stays legible over any artwork. */}
+        <div className="from-bg-deep via-bg-deep/80 absolute inset-0 bg-gradient-to-t to-transparent" />
       </div>
 
       {/* --- Header ---------------------------------------------------------- */}
