@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 
 export default function NotFound() {
   return (

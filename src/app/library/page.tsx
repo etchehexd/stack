@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { LibraryView } from "./library-view";
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getLibrary, getRatingsMap } from "@/lib/queries";
 import { getCurrentProfile } from "@/lib/supabase/server";
 import type { MediaType } from "@/lib/types/database";

@@ -11,7 +11,7 @@ import { ProgressStepper, VolumeField } from "@/components/library/progress-step
 import { StatusPicker } from "@/components/library/status-picker";
 import { TitleCard } from "@/components/title/title-card";
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
   getMyRatingPoints,
   getRelations,

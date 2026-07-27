@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { DiscoverFilters } from "./filters";
 import { TitleCard } from "@/components/title/title-card";
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getFacets, searchTitles } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getRatingsMap } from "@/lib/queries";

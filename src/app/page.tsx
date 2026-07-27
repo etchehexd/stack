@@ -4,22 +4,16 @@ import { Sparkles } from "lucide-react";
 import { TitleShelf } from "@/components/title/title-shelf";
 import { TitleCard } from "@/components/title/title-card";
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getRecommendations, getShelf, getThisSeason } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { AXIS_META } from "@/lib/rating";
 import { currentSeason, mediaAccent, MEDIA_LABEL, titleCase } from "@/lib/utils";
 
 export default async function HomePage() {
-  // Before touching the database, check it's even configured — otherwise every
-  // query fails and the page misreports it as "the catalog is empty".
-  const configured =
-    Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-    Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) &&
-    !process.env.NEXT_PUBLIC_SUPABASE_URL!.includes("YOUR-PROJECT-REF");
-
-  if (!configured) return <NotConfigured />;
-
+  // The "Supabase not configured" case is handled once, in the root layout —
+  // if we get here credentials exist, so an empty result really does mean an
+  // empty catalog.
   const user = await getCurrentUser();
   const { season, year } = currentSeason();
 
@@ -179,54 +173,6 @@ function Hero() {
           </Link>
         </div>
       </div>
-    </GlassPanel>
-  );
-}
-
-function NotConfigured() {
-  return (
-    <GlassPanel radius="xl" className="mx-auto max-w-xl p-8">
-      <h1 className="text-xl font-semibold">Supabase isn&rsquo;t connected yet</h1>
-      <p className="text-fg-2 mt-3 text-sm leading-relaxed">
-        This app can&rsquo;t reach a database, so there&rsquo;s nothing to show. The
-        environment variables are missing or still placeholders.
-      </p>
-
-      <ol className="text-fg-2 mt-5 space-y-2.5 text-sm">
-        <li>
-          <span className="text-fg font-medium">1.</span> Create a project at{" "}
-          <a
-            href="https://supabase.com/dashboard"
-            target="_blank"
-            rel="noreferrer"
-            className="text-fg underline underline-offset-2"
-          >
-            supabase.com/dashboard
-          </a>
-        </li>
-        <li>
-          <span className="text-fg font-medium">2.</span> Run{" "}
-          <code className="font-mono text-xs">supabase/schema.sql</code> in its SQL
-          editor
-        </li>
-        <li>
-          <span className="text-fg font-medium">3.</span> Copy{" "}
-          <code className="font-mono text-xs">.env.example</code> to{" "}
-          <code className="font-mono text-xs">.env.local</code> and fill in your keys
-        </li>
-      </ol>
-
-      <p className="text-fg-3 mt-5 text-xs">Then check your setup:</p>
-      <pre className="glass-subtle mt-2 overflow-x-auto rounded-md px-4 py-3 font-mono text-xs">
-        npm run doctor
-      </pre>
-
-      <p className="text-fg-3 mt-4 text-xs leading-relaxed">
-        Full walkthrough in <code className="font-mono">MANUAL_SETUP.md</code>. Restart
-        the dev server after editing{" "}
-        <code className="font-mono">.env.local</code> — Next.js only reads it at
-        startup.
-      </p>
     </GlassPanel>
   );
 }

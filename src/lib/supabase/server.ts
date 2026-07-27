@@ -3,6 +3,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/lib/types/database";
+import { SUPABASE_ANON_KEY, SUPABASE_URL, isSupabaseConfigured } from "./config";
 
 /**
  * Supabase client for Server Components, Server Actions and Route Handlers.
@@ -12,8 +13,8 @@ export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    SUPABASE_URL!,
+    SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
@@ -38,8 +39,12 @@ export async function createClient() {
  * The signed-in user, or null. Uses getUser() rather than getSession() because
  * getUser() revalidates the JWT against the auth server — getSession() trusts
  * the cookie, which is spoofable on the server.
+ *
+ * Returns null (rather than throwing) when Supabase isn't configured, so a
+ * missing env var surfaces as a setup screen instead of a blank 500.
  */
 export async function getCurrentUser() {
+  if (!isSupabaseConfigured()) return null;
   const supabase = await createClient();
   const {
     data: { user },
@@ -49,6 +54,7 @@ export async function getCurrentUser() {
 
 /** The signed-in user's profile row, or null. */
 export async function getCurrentProfile() {
+  if (!isSupabaseConfigured()) return null;
   const supabase = await createClient();
   const {
     data: { user },

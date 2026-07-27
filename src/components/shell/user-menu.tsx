@@ -8,7 +8,7 @@ import { LogOut, Settings, User as UserIcon } from "lucide-react";
 
 import { signOut } from "@/app/(auth)/actions";
 import type { Profile } from "@/lib/types/database";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 
 export function UserMenu({ profile }: { profile: Profile | null }) {
   const [open, setOpen] = React.useState(false);

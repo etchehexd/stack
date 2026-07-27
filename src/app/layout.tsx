@@ -3,7 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { AppShell } from "@/components/shell/app-shell";
+import { SetupRequired } from "@/components/shell/setup-required";
 import { getCurrentProfile } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -46,6 +48,20 @@ const THEME_BOOTSTRAP = `
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Check config BEFORE touching Supabase. Building a client without
+  // credentials throws, and a throw here takes down every route in the app with
+  // an opaque "Server Components render" digest rather than anything actionable.
+  if (!isSupabaseConfigured()) {
+    return (
+      <html lang="en" data-theme="dark" className={`${geistSans.variable} h-full antialiased`}>
+        <body className="flex min-h-full flex-col font-sans">
+          <div className="ambient-field" aria-hidden />
+          <SetupRequired />
+        </body>
+      </html>
+    );
+  }
+
   const profile = await getCurrentProfile();
 
   return (

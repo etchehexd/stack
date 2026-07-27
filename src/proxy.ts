@@ -1,6 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import {
+  SUPABASE_ANON_KEY,
+  SUPABASE_URL,
+  isSupabaseConfigured,
+} from "@/lib/supabase/config";
+
 /**
  * Next 16 renamed `middleware` to `proxy` (nodejs runtime, not configurable).
  *
@@ -12,9 +18,18 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  // Without credentials there is no session to refresh, and constructing the
+  // client would throw — failing every request before any page renders.
+  // Send everything to /setup so no page runs a query it can't complete.
+  if (!isSupabaseConfigured()) {
+    const { pathname } = request.nextUrl;
+    if (pathname === "/setup" || pathname.startsWith("/api/")) return response;
+    return NextResponse.rewrite(new URL("/setup", request.url));
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    SUPABASE_URL!,
+    SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
