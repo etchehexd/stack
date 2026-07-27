@@ -1,0 +1,342 @@
+@import "tailwindcss";
+
+/* =============================================================================
+   STACK DESIGN SYSTEM — "Liquid Glass"
+   Every glass surface in the app is built from the tokens below. To retune the
+   aesthetic globally, change it HERE — never reimplement glass per component.
+
+   Scales you are allowed to use:
+     radius : xs sm md lg xl 2xl pill
+     blur   : glass-1 (chips) .. glass-4 (full-screen scrims)
+     surface: glass / glass-subtle / glass-heavy  (+ .specular for the highlight)
+   ========================================================================== */
+
+@theme {
+  /* --- Radius scale ------------------------------------------------------ */
+  --radius-xs: 0.5rem;
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.375rem;
+  --radius-xl: 1.75rem;
+  --radius-2xl: 2.25rem;
+  --radius-pill: 999px;
+
+  /* --- Blur scale (the 4 legal levels; do not invent new ones) ------------ */
+  --blur-glass-1: 8px;
+  --blur-glass-2: 16px;
+  --blur-glass-3: 28px;
+  --blur-glass-4: 44px;
+
+  /* --- Media-type accents ------------------------------------------------ */
+  --color-anime: oklch(0.72 0.17 250); /* periwinkle */
+  --color-manga: oklch(0.74 0.16 350); /* rose */
+  --color-ln: oklch(0.76 0.14 165); /* jade */
+
+  /* --- Rating axis accents ----------------------------------------------- */
+  --color-enjoyment: oklch(0.79 0.16 60); /* warm amber — the "heart" axis */
+  --color-craft: oklch(0.74 0.14 220); /* cool cyan — the "head" axis */
+
+  /* --- Motion ----------------------------------------------------------- */
+  --ease-glass: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --- Semantic surface tokens (theme-dependent) --------------------------- */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-base: oklch(0.16 0.015 265);
+  --bg-deep: oklch(0.115 0.018 265);
+
+  --text-primary: oklch(0.97 0.005 265);
+  --text-secondary: oklch(0.78 0.012 265);
+  --text-tertiary: oklch(0.62 0.014 265);
+
+  --glass-1: oklch(1 0 0 / 0.045);
+  --glass-2: oklch(1 0 0 / 0.075);
+  --glass-3: oklch(1 0 0 / 0.11);
+  --glass-hover: oklch(1 0 0 / 0.145);
+
+  --glass-border: oklch(1 0 0 / 0.11);
+  --glass-border-strong: oklch(1 0 0 / 0.2);
+  --glass-specular: oklch(1 0 0 / 0.16);
+
+  --shadow-glass: 0 1px 1px oklch(0 0 0 / 0.25), 0 8px 24px -8px oklch(0 0 0 / 0.5),
+    0 24px 60px -20px oklch(0 0 0 / 0.55);
+  --shadow-lift: 0 2px 4px oklch(0 0 0 / 0.3), 0 16px 40px -12px oklch(0 0 0 / 0.6);
+
+  --accent: oklch(0.72 0.17 250);
+  --danger: oklch(0.66 0.19 25);
+  --success: oklch(0.74 0.15 155);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-base: oklch(0.98 0.006 265);
+  --bg-deep: oklch(0.94 0.01 265);
+
+  --text-primary: oklch(0.22 0.02 265);
+  --text-secondary: oklch(0.42 0.018 265);
+  --text-tertiary: oklch(0.56 0.016 265);
+
+  --glass-1: oklch(1 0 0 / 0.5);
+  --glass-2: oklch(1 0 0 / 0.66);
+  --glass-3: oklch(1 0 0 / 0.8);
+  --glass-hover: oklch(1 0 0 / 0.92);
+
+  --glass-border: oklch(0.3 0.02 265 / 0.1);
+  --glass-border-strong: oklch(0.3 0.02 265 / 0.2);
+  --glass-specular: oklch(1 0 0 / 0.9);
+
+  --shadow-glass: 0 1px 2px oklch(0.3 0.02 265 / 0.06),
+    0 8px 24px -8px oklch(0.3 0.02 265 / 0.14),
+    0 24px 60px -20px oklch(0.3 0.02 265 / 0.16);
+  --shadow-lift: 0 2px 6px oklch(0.3 0.02 265 / 0.1),
+    0 16px 40px -12px oklch(0.3 0.02 265 / 0.2);
+
+  --accent: oklch(0.55 0.19 260);
+  --danger: oklch(0.55 0.2 25);
+  --success: oklch(0.6 0.15 155);
+}
+
+@theme inline {
+  --color-bg-base: var(--bg-base);
+  --color-bg-deep: var(--bg-deep);
+  --color-fg: var(--text-primary);
+  --color-fg-2: var(--text-secondary);
+  --color-fg-3: var(--text-tertiary);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-hairline: var(--glass-border);
+  --color-hairline-strong: var(--glass-border-strong);
+}
+
+/* --- Base ---------------------------------------------------------------- */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in oklch, var(--accent) 40%, transparent);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* The ambient backdrop: soft colored orbs behind everything, so the frosted
+   panels have something to refract. Fixed, non-interactive, GPU-cheap. */
+.ambient-field {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--bg-deep);
+}
+.ambient-field::before,
+.ambient-field::after {
+  content: "";
+  position: absolute;
+  width: 62vmax;
+  height: 62vmax;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.38;
+  will-change: transform;
+}
+.ambient-field::before {
+  background: radial-gradient(circle, var(--color-anime), transparent 68%);
+  top: -24vmax;
+  left: -14vmax;
+  animation: drift-a 36s var(--ease-glass) infinite alternate;
+}
+.ambient-field::after {
+  background: radial-gradient(circle, var(--color-manga), transparent 68%);
+  bottom: -26vmax;
+  right: -16vmax;
+  animation: drift-b 44s var(--ease-glass) infinite alternate;
+}
+:root[data-theme="light"] .ambient-field::before,
+:root[data-theme="light"] .ambient-field::after {
+  opacity: 0.2;
+}
+
+@keyframes drift-a {
+  to {
+    transform: translate3d(14vmax, 10vmax, 0) scale(1.15);
+  }
+}
+@keyframes drift-b {
+  to {
+    transform: translate3d(-12vmax, -8vmax, 0) scale(1.1);
+  }
+}
+
+/* --- Glass utilities ------------------------------------------------------ */
+@utility glass {
+  background: var(--glass-2);
+  backdrop-filter: blur(var(--blur-glass-2)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur-glass-2)) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+}
+
+@utility glass-subtle {
+  background: var(--glass-1);
+  backdrop-filter: blur(var(--blur-glass-1)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur-glass-1)) saturate(160%);
+  border: 1px solid var(--glass-border);
+}
+
+@utility glass-heavy {
+  background: var(--glass-3);
+  backdrop-filter: blur(var(--blur-glass-3)) saturate(200%);
+  -webkit-backdrop-filter: blur(var(--blur-glass-3)) saturate(200%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+}
+
+@utility glass-scrim {
+  background: oklch(0 0 0 / 0.4);
+  backdrop-filter: blur(var(--blur-glass-4)) saturate(120%);
+  -webkit-backdrop-filter: blur(var(--blur-glass-4)) saturate(120%);
+}
+
+/* The specular highlight — a 1px light rim along the top edge. This is what
+   reads as "liquid glass" rather than just "blurry box". */
+@utility specular {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      160deg,
+      var(--glass-specular) 0%,
+      transparent 38%,
+      transparent 68%,
+      oklch(1 0 0 / 0.06) 100%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+  }
+}
+
+@utility glass-press {
+  transition:
+    transform 220ms var(--ease-glass),
+    background 220ms var(--ease-glass),
+    box-shadow 220ms var(--ease-glass);
+
+  &:hover {
+    background: var(--glass-hover);
+  }
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+@utility scroll-glass {
+  scrollbar-width: thin;
+  scrollbar-color: var(--glass-border-strong) transparent;
+
+  &::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--glass-border-strong);
+    border-radius: 999px;
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Shimmer used by skeletons */
+@utility shimmer {
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      oklch(1 0 0 / 0.07),
+      transparent
+    );
+    animation: shimmer-sweep 1.6s infinite;
+  }
+}
+
+@keyframes shimmer-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* --- Motion preferences --------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Fallback for browsers without backdrop-filter: opaque-ish fills so panels
+   stay legible instead of becoming unreadable transparent boxes. */
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  :root {
+    --glass-1: oklch(0.21 0.02 265);
+    --glass-2: oklch(0.24 0.02 265);
+    --glass-3: oklch(0.28 0.02 265);
+  }
+  :root[data-theme="light"] {
+    --glass-1: oklch(0.99 0 0);
+    --glass-2: oklch(0.98 0 0);
+    --glass-3: oklch(0.97 0 0);
+  }
+}

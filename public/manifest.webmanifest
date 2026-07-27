@@ -1,0 +1,18 @@
+{
+  "name": "Stack — anime, manga & light novel tracker",
+  "short_name": "Stack",
+  "description": "Rate every title on two axes: how much you enjoyed it, and how well-made it is.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#16181f",
+  "theme_color": "#16181f",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
