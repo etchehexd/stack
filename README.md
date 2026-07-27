@@ -51,25 +51,24 @@ scripts/sync-anilist.ts      AniList → Supabase catalog sync (npm run sync:*)
 src/
   proxy.ts                   Auth token refresh (Next 16's renamed middleware)
   app/
-    page.tsx                 Home — bento season grid + per-media shelves
+    page.tsx                 Home — full-width lead title + per-media shelves
     discover/                Fuzzy search + tri-state filters
     library/                 Three media tabs, status, tap-+1 progress
     calendar/                7-day airing schedule, library-highlighted
-    title/[id]/              Detail, rating pad, franchise, community scatter
-    u/[username]/            Profile, stats, full Enjoyment × Craft scatter
+    title/[id]/              Detail: art-tinted hero, rating pad, franchise
+    u/[username]/            Profile: averages, stat tiles, favourites, activity
     settings/                Profile + the opt-in "Overall" sort
     (auth)/                  Sign in / sign up
     actions/                 Server actions: rating.ts, library.ts
     api/cron/sync/           Scheduled catalog refresh (Vercel Cron)
   components/
-    rating/                  StarRow, RatingPad, RatingScatter, RatingHistogram,
-                             RatingBadge, MiniPlane (the 20px plane glyph)
+    rating/                  StarRow, RatingPad, Score, DualScore
     library/                 ProgressStepper, VolumeField, StatusPicker
     title/                   TitleCard, TitleShelf
     ui/                      Glass primitives incl. TriStateChip
     shell/                   Nav, tab bar, quick search, theme toggle
   lib/
-    rating.ts                Two-axis logic, quadrants, isolated composite score
+    rating.ts                Two-axis logic, the 0-10 display scale, quadrants
     queries.ts               Every server-side read
     anilist.ts               GraphQL client + mappers
     supabase/                client / server / admin
@@ -87,10 +86,14 @@ blended** in the UI. The only place they combine is an opt-in "Overall" sort
 (even 50/50 average), isolated in `src/lib/rating.ts` so it can be reweighted or
 deleted in one edit.
 
-Every rated title becomes a point on the Enjoyment × Craft plane. The same
-`RatingScatter` component renders both the compact live readout beside the star
-rows and the full chart on your profile, so the four quadrants read identically
-everywhere:
+**Every score in the app displays as 0–10 with one decimal.** Stars stay the
+input — clicking a glyph beats typing a decimal — and are doubled for display;
+AniList's 0–100 percentage is tenthed. Both conversions live in `formatTen()`
+and `formatPercentAsTen()` and nowhere else, so there is never more than one
+scale on screen.
+
+There are no charts. The quadrants below are still how `user_stats` buckets a
+library, but they are read from the two numbers rather than drawn:
 
 |  | Low craft | High craft |
 | --- | --- | --- |
