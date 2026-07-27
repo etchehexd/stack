@@ -3,12 +3,13 @@
 --
 -- Paste this whole file into the Supabase SQL Editor and press Run.
 --
--- Safe to re-run. Every step is guarded. Existing enjoyment/craft ratings are
--- carried over onto the new 0-10 scale as the mean of the two axes, doubled
--- (so 4.5 enjoyment + 4.0 craft becomes 8.5).
+-- Safe to re-run: every step is guarded. Existing enjoyment/craft ratings are
+-- carried onto the new 0-10 scale as the mean of the two axes, doubled, so
+-- 4.5 enjoyment + 4.0 craft becomes 8.5.
 --
--- This is exactly the subset of supabase/schema.sql that changed. Running the
--- full schema.sql instead does the same thing plus a few hundred no-ops.
+-- This is the subset of supabase/schema.sql that actually changed. It does NOT
+-- touch search_titles, which is where the pg_trgm permission error comes from
+-- if you run the full schema.sql on an older copy.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -464,3 +465,4 @@ grant execute on function public.place_rating        to authenticated;
 grant execute on function public.seed_rating         to authenticated;
 grant execute on function public.unrate              to authenticated;
 grant execute on function public.recommendations     to authenticated;
+grant execute on function public.taste_compatibility to authenticated;

@@ -660,11 +660,29 @@ language sql
 stable
 security definer
 set search_path = public, extensions
--- Typo tolerance is tuned here. word_similarity compares the query against the
--- best-matching SPAN of search_text, rather than the whole string — without
--- this, a 3-word query against a long multi-title haystack always scores below
--- any useful threshold. 0.3 tolerates roughly two typos in a short title.
-set pg_trgm.word_similarity_threshold = '0.3'
+-- ---------------------------------------------------------------------------
+-- TYPO TOLERANCE — and why the threshold is written inline rather than SET.
+--
+-- word_similarity() compares the query against the best-matching SPAN of
+-- search_text rather than the whole string. Without that, a 3-word query
+-- against a long multi-title haystack always scores below any useful
+-- threshold. 0.3 tolerates roughly two typos in a short title.
+--
+-- This used to read `set pg_trgm.word_similarity_threshold = '0.3'` here and
+-- use the `%>` operator, which reads that GUC. Don't do that: pg_trgm lives in
+-- the `extensions` schema and its custom GUCs only get registered once the
+-- extension's library is loaded into the session. In a fresh SQL Editor
+-- session it isn't, so Postgres treats the name as an unknown placeholder —
+-- and only a superuser may SET a placeholder. On Supabase the postgres role
+-- isn't one, so running this file failed with:
+--
+--   ERROR: 42501: permission denied to set parameter
+--          "pg_trgm.word_similarity_threshold"
+--
+-- It's load-order dependent, which is worse than broken: it succeeds if some
+-- earlier query happened to load pg_trgm and fails otherwise. The threshold is
+-- compared explicitly below instead, so nothing depends on session state.
+-- ---------------------------------------------------------------------------
 as $$
   with normalized as (
     select nullif(public.normalize_search(p_query), '') as q
@@ -680,9 +698,15 @@ as $$
       end as rel
     from public.titles t cross join normalized n
     where
-      -- `%>` is the commutator of `<%`, written this way so the indexed column
-      -- (search_text) is on the left and the GIN trigram index can be used.
-      (n.q is null or t.search_text %> n.q or t.search_text like '%' || n.q || '%')
+      -- Explicit threshold instead of the `%>` operator — see the note above the
+      -- function body. The substring test is listed first because it's the
+      -- cheap, index-friendly case and short-circuits the fuzzy scan for the
+      -- overwhelming majority of real queries.
+      (
+        n.q is null
+        or t.search_text like '%' || n.q || '%'
+        or extensions.word_similarity(n.q, t.search_text) >= 0.3
+      )
       and (p_media_types    is null or t.media_type = any(p_media_types))
       and (p_formats        is null or t.format = any(p_formats))
       and (p_exclude_formats is null or t.format is null or not (t.format = any(p_exclude_formats)))
