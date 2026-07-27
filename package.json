@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "doctor": "tsx scripts/doctor.ts",
     "sync:seed": "tsx scripts/sync-anilist.ts seed",
     "sync:refresh": "tsx scripts/sync-anilist.ts refresh",
     "sync:airing": "tsx scripts/sync-anilist.ts airing",

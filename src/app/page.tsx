@@ -11,6 +11,15 @@ import { AXIS_META } from "@/lib/rating";
 import { currentSeason, mediaAccent, MEDIA_LABEL, titleCase } from "@/lib/utils";
 
 export default async function HomePage() {
+  // Before touching the database, check it's even configured — otherwise every
+  // query fails and the page misreports it as "the catalog is empty".
+  const configured =
+    Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+    Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) &&
+    !process.env.NEXT_PUBLIC_SUPABASE_URL!.includes("YOUR-PROJECT-REF");
+
+  if (!configured) return <NotConfigured />;
+
   const user = await getCurrentUser();
   const { season, year } = currentSeason();
 
@@ -174,22 +183,68 @@ function Hero() {
   );
 }
 
+function NotConfigured() {
+  return (
+    <GlassPanel radius="xl" className="mx-auto max-w-xl p-8">
+      <h1 className="text-xl font-semibold">Supabase isn&rsquo;t connected yet</h1>
+      <p className="text-fg-2 mt-3 text-sm leading-relaxed">
+        This app can&rsquo;t reach a database, so there&rsquo;s nothing to show. The
+        environment variables are missing or still placeholders.
+      </p>
+
+      <ol className="text-fg-2 mt-5 space-y-2.5 text-sm">
+        <li>
+          <span className="text-fg font-medium">1.</span> Create a project at{" "}
+          <a
+            href="https://supabase.com/dashboard"
+            target="_blank"
+            rel="noreferrer"
+            className="text-fg underline underline-offset-2"
+          >
+            supabase.com/dashboard
+          </a>
+        </li>
+        <li>
+          <span className="text-fg font-medium">2.</span> Run{" "}
+          <code className="font-mono text-xs">supabase/schema.sql</code> in its SQL
+          editor
+        </li>
+        <li>
+          <span className="text-fg font-medium">3.</span> Copy{" "}
+          <code className="font-mono text-xs">.env.example</code> to{" "}
+          <code className="font-mono text-xs">.env.local</code> and fill in your keys
+        </li>
+      </ol>
+
+      <p className="text-fg-3 mt-5 text-xs">Then check your setup:</p>
+      <pre className="glass-subtle mt-2 overflow-x-auto rounded-md px-4 py-3 font-mono text-xs">
+        npm run doctor
+      </pre>
+
+      <p className="text-fg-3 mt-4 text-xs leading-relaxed">
+        Full walkthrough in <code className="font-mono">MANUAL_SETUP.md</code>. Restart
+        the dev server after editing{" "}
+        <code className="font-mono">.env.local</code> — Next.js only reads it at
+        startup.
+      </p>
+    </GlassPanel>
+  );
+}
+
 function EmptyCatalog() {
   return (
     <GlassPanel radius="xl" className="mx-auto max-w-xl p-8 text-center">
       <h1 className="text-xl font-semibold">The catalog is empty</h1>
       <p className="text-fg-2 mt-3 text-sm leading-relaxed">
-        Your database has no titles yet. Run the AniList sync to populate it:
+        Supabase is connected, but no titles have been synced yet.
       </p>
       <pre className="glass-subtle mt-4 overflow-x-auto rounded-md px-4 py-3 text-left font-mono text-xs">
         npm run sync:seed
       </pre>
       <p className="text-fg-3 mt-4 text-xs leading-relaxed">
-        Takes a few minutes. If it errors, check that{" "}
-        <code className="font-mono">SUPABASE_SERVICE_ROLE_KEY</code> is set in{" "}
-        <code className="font-mono">.env.local</code>, and that you ran{" "}
-        <code className="font-mono">supabase/schema.sql</code> in the Supabase SQL
-        editor first.
+        Takes 3–5 minutes. If it errors, run{" "}
+        <code className="font-mono">npm run doctor</code> — it will tell you exactly
+        which step is incomplete.
       </p>
     </GlassPanel>
   );
