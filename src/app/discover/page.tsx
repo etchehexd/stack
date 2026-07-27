@@ -3,12 +3,11 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { DiscoverFilters } from "./filters";
-import { TitleCard } from "@/components/title/title-card";
+import { DiscoverResults } from "./results";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { getFacets, searchTitles } from "@/lib/queries";
+import { getFacets, getRatingsMap, searchTitles } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { getRatingsMap } from "@/lib/queries";
 import type { MediaType } from "@/lib/types/database";
 import { parseTriSet } from "@/lib/tri-state";
 
@@ -17,7 +16,7 @@ export const metadata: Metadata = {
   description: "Search and filter every anime, manga and light novel in the catalog.",
 };
 
-const PAGE_SIZE = 40;
+const PAGE_SIZE = 42;
 
 export default async function DiscoverPage(props: PageProps<"/discover">) {
   const sp = await props.searchParams;
@@ -36,10 +35,14 @@ export default async function DiscoverPage(props: PageProps<"/discover">) {
   const statuses = parseTriSet(first("status"));
   const people = parseTriSet(first("people"));
 
-  const page = num("page") ?? 1;
   const query = first("q");
 
-  const params = {
+  /*
+    The filter set is built once and handed to the client as-is, so the
+    "load more" action asks for the next slice of exactly this search rather
+    than re-deriving it from a URL the client would have to parse again.
+  */
+  const filters = {
     query,
     mediaTypes: (first("media")?.split(",").filter(Boolean) ?? []) as MediaType[],
     formats: formats.include,
@@ -59,18 +62,20 @@ export default async function DiscoverPage(props: PageProps<"/discover">) {
     // Relevance ordering is implicit whenever there's a query, so only pass an
     // explicit sort when the user picked one.
     sort: first("sort") ?? (query ? "relevance" : "popularity"),
-    limit: PAGE_SIZE,
-    offset: (page - 1) * PAGE_SIZE,
   };
 
   const [{ results, total }, facets, user] = await Promise.all([
-    searchTitles(params),
+    searchTitles({ ...filters, limit: PAGE_SIZE, offset: 0 }),
     getFacets(),
     getCurrentUser(),
   ]);
 
-  const ratings = user ? await getRatingsMap(user.id) : new Map<string, number>();
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // Every score this viewer has given — the whole map, not just this page's
+  // worth, so the infinite grid can label rows it fetches later without
+  // another round trip.
+  const ratings = user
+    ? Object.fromEntries(await getRatingsMap(user.id))
+    : {};
 
   return (
     <div className="space-y-6">
@@ -88,22 +93,13 @@ export default async function DiscoverPage(props: PageProps<"/discover">) {
       {results.length === 0 ? (
         <NoResults query={query} />
       ) : (
-        <>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
-            {results.map((result, i) => (
-              <TitleCard
-                key={result.id}
-                title={result}
-                score={ratings.get(result.id) ?? null}
-                priority={i < 6}
-              />
-            ))}
-          </div>
-
-          {totalPages > 1 && (
-            <Pagination page={page} totalPages={totalPages} searchParams={sp} />
-          )}
-        </>
+        <DiscoverResults
+          initial={results}
+          total={total}
+          params={filters}
+          pageSize={PAGE_SIZE}
+          ratings={ratings}
+        />
       )}
     </div>
   );
@@ -122,47 +118,5 @@ function NoResults({ query }: { query?: string }) {
         Clear filters
       </Link>
     </GlassPanel>
-  );
-}
-
-function Pagination({
-  page,
-  totalPages,
-  searchParams,
-}: {
-  page: number;
-  totalPages: number;
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
-  function hrefFor(target: number) {
-    const next = new URLSearchParams();
-    for (const [key, value] of Object.entries(searchParams)) {
-      if (key === "page" || value == null) continue;
-      next.set(key, Array.isArray(value) ? value[0] : value);
-    }
-    if (target > 1) next.set("page", String(target));
-    const qs = next.toString();
-    return qs ? `/discover?${qs}` : "/discover";
-  }
-
-  return (
-    <nav
-      aria-label="Pagination"
-      className="flex items-center justify-center gap-3 pt-2"
-    >
-      {page > 1 && (
-        <Link href={hrefFor(page - 1)} className={buttonVariants({ size: "sm" })}>
-          Previous
-        </Link>
-      )}
-      <span className="text-fg-3 text-xs tabular-nums">
-        Page {page} of {totalPages}
-      </span>
-      {page < totalPages && (
-        <Link href={hrefFor(page + 1)} className={buttonVariants({ size: "sm" })}>
-          Next
-        </Link>
-      )}
-    </nav>
   );
 }

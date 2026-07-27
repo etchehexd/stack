@@ -4,12 +4,14 @@ import * as React from "react";
 import { Star } from "lucide-react";
 
 import { RatingDialog } from "./rating-dialog";
-import { BUCKETS, bucketOf, formatScore, scoreColor } from "@/lib/rating";
+import { ScoreChip } from "./score-chip";
+import { BUCKETS, bucketOf, scoreColor } from "@/lib/rating";
 import { cn } from "@/lib/utils";
 
 /**
- * The single entry point into rating. Shows the current score if there is one,
- * otherwise invites a rating; either way it opens the dialog.
+ * The single entry point into rating. Shows the current score as the same dial
+ * that appears on every poster, so "your rating" looks identical wherever it
+ * turns up; otherwise it invites one.
  */
 export function RateButton({
   titleId,
@@ -38,16 +40,17 @@ export function RateButton({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "group/rate inline-flex h-11 items-center gap-3 rounded-xl border pr-4 pl-3",
-          "transition-[transform,border-color,background] duration-200",
+          "group/rate inline-flex h-12 items-center gap-3 rounded-xl border pr-4 pl-2.5",
+          "transition-[transform,border-color,background,box-shadow] duration-200",
           "hover:-translate-y-0.5 active:scale-[0.98]",
           className,
         )}
         style={
           score != null
             ? {
-                borderColor: `color-mix(in oklch, ${color} 40%, transparent)`,
-                background: `color-mix(in oklch, ${color} 12%, transparent)`,
+                borderColor: `color-mix(in oklch, ${color} 45%, transparent)`,
+                background: `color-mix(in oklch, ${color} 13%, transparent)`,
+                boxShadow: `0 8px 24px -14px ${color}`,
               }
             : {
                 borderColor: "var(--glass-border-strong)",
@@ -57,12 +60,7 @@ export function RateButton({
       >
         {score != null ? (
           <>
-            <span
-              className="numeral text-2xl leading-none"
-              style={{ color }}
-            >
-              {formatScore(score)}
-            </span>
+            <ScoreChip score={score} mine size="md" />
             <span className="text-left">
               <span className="axis-caps block" style={{ color }}>
                 {BUCKETS[bucket!].label}
@@ -74,8 +72,13 @@ export function RateButton({
           </>
         ) : (
           <>
-            <Star className="text-fg-2 size-4" strokeWidth={2.4} />
-            <span className="text-sm font-semibold tracking-tight">Rate it</span>
+            <span
+              className="grid size-8 place-items-center rounded-full transition-transform duration-300 group-hover/rate:scale-110"
+              style={{ background: "var(--glass-2)" }}
+            >
+              <Star className="text-fg-2 size-4" strokeWidth={2.4} />
+            </span>
+            <span className="text-sm font-bold tracking-tight">Rate it</span>
           </>
         )}
       </button>

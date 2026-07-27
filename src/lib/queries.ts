@@ -287,8 +287,41 @@ export async function getRelations(titleId: string): Promise<RelatedTitle[]> {
     .filter((r): r is RelatedTitle => r !== null);
 }
 
-/** How Stack's own users scored a title: the mean and the sample size. */
-export async function getTitleRatings(titleId: string) {
+export interface ScoreSpread {
+  average: number | null;
+  count: number;
+  /** Ten buckets, low to high: 0–1, 1–2 … 9–10. */
+  bins: number[];
+}
+
+/** Ten empty buckets. One shape for every histogram in the app. */
+function emptyBins() {
+  return Array.from({ length: 10 }, () => 0);
+}
+
+/** Sort a list of 0–10 scores into the ten histogram buckets. */
+function spread(scores: number[]): ScoreSpread {
+  const bins = emptyBins();
+  for (const score of scores) {
+    // 0.1 lands in the first bucket and a perfect 10 in the last, so the index
+    // is ceil - 1 rather than floor.
+    const index = Math.min(9, Math.max(0, Math.ceil(score) - 1));
+    bins[index] += 1;
+  }
+  return {
+    average: scores.length
+      ? scores.reduce((a, b) => a + b, 0) / scores.length
+      : null,
+    count: scores.length,
+    bins,
+  };
+}
+
+/**
+ * How Stack's own users scored a title: the mean, the sample size and the
+ * shape. The shape is the interesting part — see `RatingDistribution`.
+ */
+export async function getTitleRatings(titleId: string): Promise<ScoreSpread> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("ratings")
@@ -298,16 +331,27 @@ export async function getTitleRatings(titleId: string) {
 
   if (error) {
     console.error("[getTitleRatings]", error.message);
-    return { average: null, count: 0 };
+    return { average: null, count: 0, bins: emptyBins() };
   }
 
-  const scores = (data ?? []).map((r) => Number(r.score));
-  if (scores.length === 0) return { average: null, count: 0 };
+  return spread((data ?? []).map((r) => Number(r.score)));
+}
 
-  return {
-    average: scores.reduce((a, b) => a + b, 0) / scores.length,
-    count: scores.length,
-  };
+/** The same histogram, for everything one person has rated. */
+export async function getUserScoreSpread(userId: string): Promise<ScoreSpread> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ratings")
+    .select("score")
+    .eq("user_id", userId)
+    .limit(1000);
+
+  if (error) {
+    console.error("[getUserScoreSpread]", error.message);
+    return { average: null, count: 0, bins: emptyBins() };
+  }
+
+  return spread((data ?? []).map((r) => Number(r.score)));
 }
 
 /** The viewer's own rating + library entry for a title. */

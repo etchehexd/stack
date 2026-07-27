@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExternalLink, Users } from "lucide-react";
+import { Calendar, ExternalLink, Layers, Play, Users } from "lucide-react";
 
 import { FavoriteButton } from "./favorite-button";
 import { RateButton } from "@/components/rating/rate-button";
+import { RatingDistribution } from "@/components/rating/rating-distribution";
+import { ScoreChip } from "@/components/rating/score-chip";
 import { ProgressStepper, VolumeField } from "@/components/library/progress-stepper";
 import { StatusPicker } from "@/components/library/status-picker";
 import { TitleCard } from "@/components/title/title-card";
@@ -19,7 +21,7 @@ import {
   getUserTitleState,
 } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { formatPercentAsTen, formatScore, scoreColor } from "@/lib/rating";
+import { percentToTen } from "@/lib/rating";
 import {
   airingStatusLabel,
   compactNumber,
@@ -53,6 +55,15 @@ export async function generateMetadata(
   };
 }
 
+/**
+ * A title.
+ *
+ * Rebuilt around one question — "is this for me, and where am I with it" — so
+ * the page reads in that order: the artwork, then what people think of it
+ * (a number AND the shape behind the number), then what you've done with it,
+ * then the facts. The old version led with four identical stat tiles, which
+ * answered none of that and looked like a database row.
+ */
 export default async function TitlePage(props: PageProps<"/title/[id]">) {
   const { id } = await props.params;
 
@@ -74,19 +85,15 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
   const readable = isReadable(title.media_type);
   const myScore =
     userState.rating?.score != null ? Number(userState.rating.score) : null;
+  const catalogTen = percentToTen(title.average_score);
 
   return (
-    <article
-      className="pb-4"
-      style={{ "--art": art } as React.CSSProperties}
-    >
+    <article className="pb-4" style={{ "--art": art } as React.CSSProperties}>
       {/* ===================================================================
-          Hero. Full-bleed art, everything else stacked over the bottom of it.
-          One column, so on a phone the poster, the title and the numbers read
-          top to bottom instead of fighting for a narrow row.
+          Hero. Full-bleed art with everything stacked over the bottom of it.
           =================================================================== */}
       <section className="relative -mx-4 -mt-[4.5rem] sm:-mx-6 lg:-mx-10">
-        <div className="relative h-[420px] overflow-hidden sm:h-[460px] lg:h-[520px]">
+        <div className="relative h-[26rem] overflow-hidden sm:h-[29rem] lg:h-[33rem]">
           {title.banner_image ? (
             <Image
               src={title.banner_image}
@@ -112,7 +119,7 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
           <div
             className="absolute inset-0"
             style={{
-              background: `linear-gradient(105deg, color-mix(in oklch, ${art} 62%, transparent) 0%, transparent 58%)`,
+              background: `radial-gradient(75% 120% at 12% 60%, color-mix(in oklch, ${art} 55%, transparent) 0%, transparent 70%)`,
             }}
             aria-hidden
           />
@@ -120,7 +127,7 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
             className="absolute inset-0"
             style={{
               background:
-                "linear-gradient(to top, var(--bg-deep) 2%, color-mix(in oklch, var(--bg-deep) 82%, transparent) 38%, color-mix(in oklch, var(--bg-deep) 25%, transparent) 100%)",
+                "linear-gradient(to top, var(--bg-deep) 3%, color-mix(in oklch, var(--bg-deep) 86%, transparent) 34%, color-mix(in oklch, var(--bg-deep) 28%, transparent) 100%)",
             }}
             aria-hidden
           />
@@ -129,8 +136,8 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
         <div className="absolute inset-x-0 bottom-0 px-4 sm:px-6 lg:px-10">
           <div className="flex items-end gap-4 sm:gap-7">
             <div
-              className="relative aspect-[2/3] w-24 shrink-0 overflow-hidden rounded-2xl shadow-[var(--shadow-lift)] sm:w-40 lg:w-48"
-              style={{ background: art, border: "1px solid oklch(1 0 0 / 0.16)" }}
+              className="relative aspect-[2/3] w-28 shrink-0 overflow-hidden rounded-2xl shadow-[var(--shadow-lift)] sm:w-40 lg:w-52"
+              style={{ background: art, border: "1px solid oklch(1 0 0 / 0.18)" }}
             >
               {title.cover_image_large && (
                 <Image
@@ -138,9 +145,14 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
                   alt={`Cover art for ${name}`}
                   fill
                   priority
-                  sizes="(max-width: 640px) 96px, (max-width: 1024px) 160px, 192px"
+                  sizes="(max-width: 640px) 112px, (max-width: 1024px) 160px, 208px"
                   className="object-cover"
                 />
+              )}
+              {catalogTen != null && (
+                <div className="absolute top-1.5 right-1.5">
+                  <ScoreChip percent={title.average_score} size="md" />
+                </div>
               )}
             </div>
 
@@ -164,9 +176,26 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
                 )}
               </div>
 
-              <h1 className="page-title text-balance-pretty">{name}</h1>
-              {alt && (
-                <p className="text-fg-3 mt-1.5 truncate text-sm">{alt}</p>
+              <h1 className="page-title text-balance">{name}</h1>
+              {alt && <p className="text-fg-3 mt-1.5 truncate text-sm">{alt}</p>}
+
+              {title.genres.length > 0 && (
+                <div className="mt-3.5 hidden flex-wrap gap-1.5 sm:flex">
+                  {title.genres.slice(0, 5).map((genre) => (
+                    <Link
+                      key={genre}
+                      href={`/discover?genres=${encodeURIComponent(genre)}`}
+                      className="rounded-pill px-2.5 py-1 text-[11px] font-semibold transition-[transform,background] duration-200 hover:-translate-y-0.5"
+                      style={{
+                        color: "oklch(1 0 0 / 0.9)",
+                        background: "oklch(1 0 0 / 0.12)",
+                        border: "1px solid oklch(1 0 0 / 0.1)",
+                      }}
+                    >
+                      {genre}
+                    </Link>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -174,9 +203,7 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
       </section>
 
       {/* ===================================================================
-          Action bar. Every control that changes something lives on this one
-          line, directly under the hero — you never have to hunt the page for
-          the thing that rates or tracks.
+          Action bar. Every control that changes something on one line.
           =================================================================== */}
       <GlassPanel
         radius="2xl"
@@ -228,44 +255,61 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
         )}
       </GlassPanel>
 
-      {/* ===================================================================
-          Scores. Three figures on one strip, biggest first.
-          =================================================================== */}
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat
-          label="AniList"
-          value={formatPercentAsTen(title.average_score)}
-          color={
-            title.average_score != null
-              ? scoreColor(title.average_score / 10)
-              : undefined
-          }
-        />
-        <Stat
-          label={`Stack · ${community.count}`}
-          value={community.average != null ? formatScore(community.average) : "—"}
-          color={
-            community.average != null ? scoreColor(community.average) : undefined
-          }
-        />
-        <Stat
-          label={total != null ? unitNoun(title.media_type, total !== 1) : "Length"}
-          value={total != null ? String(total) : "—"}
-        />
-        <Stat
-          label="Tracking"
-          value={
-            title.popularity != null ? compactNumber(title.popularity) : "—"
-          }
-          icon={<Users className="size-3.5" />}
-        />
-      </div>
-
-      {/* ===================================================================
-          Body.
-          =================================================================== */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-6">
+          {/* ===============================================================
+              Scores. The catalog average is the headline; the histogram of
+              Stack's own ratings sits beside it, because the shape of the
+              votes says things the mean can't.
+              =============================================================== */}
+          <GlassPanel radius="2xl" className="p-5 sm:p-6">
+            <div className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-8">
+              <div className="flex items-center gap-4 sm:flex-col sm:items-start">
+                <div>
+                  <p className="axis-caps text-fg-3 mb-2">Rating</p>
+                  <div className="flex items-center gap-3">
+                    <ScoreChip percent={title.average_score} size="lg" />
+                    <div className="min-w-0">
+                      <p className="text-fg-3 text-xs">out of 10</p>
+                      <p className="text-fg-3 mt-0.5 text-xs tabular-nums">
+                        {title.favourites != null
+                          ? `${compactNumber(title.favourites)} favourites`
+                          : "community average"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="sm:mt-5">
+                  <p className="axis-caps text-fg-3 mb-2">Your rating</p>
+                  {myScore != null ? (
+                    <div className="flex items-center gap-3">
+                      <ScoreChip score={myScore} mine size="lg" />
+                      <p className="text-fg-3 text-xs">
+                        placed by
+                        <br />
+                        comparison
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-fg-3 text-sm">
+                      {user ? "Not rated yet." : "Sign in to rate."}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="border-hairline sm:border-l sm:pl-8">
+                <RatingDistribution
+                  bins={community.bins}
+                  count={community.count}
+                  average={community.average}
+                  mine={myScore}
+                />
+              </div>
+            </div>
+          </GlassPanel>
+
           {title.synopsis && (
             <section>
               <h2 className="panel-title mb-3">Synopsis</h2>
@@ -326,9 +370,50 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
           )}
         </div>
 
-        <aside>
+        <aside className="space-y-4">
+          {title.next_airing_at && (
+            <GlassPanel
+              level="subtle"
+              radius="2xl"
+              className="p-5"
+              style={{
+                borderColor: `color-mix(in oklch, ${accent} 40%, transparent)`,
+              }}
+            >
+              <p className="axis-caps text-fg-3 mb-2 flex items-center gap-1.5">
+                <Play className="size-3" />
+                Next episode
+              </p>
+              <p className="numeral text-2xl leading-none" style={{ color: accent }}>
+                {countdown(title.next_airing_at)}
+              </p>
+              <p className="text-fg-3 mt-1.5 text-xs">
+                Episode {title.next_airing_ep ?? "?"} ·{" "}
+                {new Date(title.next_airing_at).toLocaleDateString(undefined, {
+                  weekday: "long",
+                })}
+              </p>
+            </GlassPanel>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <Fact
+              icon={<Layers className="size-3" />}
+              label={total != null ? unitNoun(title.media_type, total !== 1) : "Length"}
+              value={total != null ? String(total) : "—"}
+            />
+            <Fact
+              icon={<Users className="size-3" />}
+              label="Tracking"
+              value={title.popularity != null ? compactNumber(title.popularity) : "—"}
+            />
+          </div>
+
           <GlassPanel radius="2xl" className="p-5">
-            <h2 className="panel-title mb-3">Details</h2>
+            <h2 className="panel-title mb-3 flex items-center gap-2">
+              <Calendar className="text-fg-3 size-3.5" />
+              Details
+            </h2>
             <dl>
               <Detail label="Format" value={formatLabel(title.format)} />
               <Detail label="Status" value={airingStatusLabel(title.status)} />
@@ -355,13 +440,6 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
               {title.source && (
                 <Detail label="Source" value={titleCase(title.source)} />
               )}
-              {title.next_airing_at && (
-                <Detail
-                  label={`Episode ${title.next_airing_ep ?? "?"}`}
-                  value={countdown(title.next_airing_at)}
-                  highlight
-                />
-              )}
             </dl>
 
             {title.site_url && (
@@ -374,7 +452,7 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
                   className: "mt-4 w-full gap-1.5",
                 })}
               >
-                AniList
+                View on AniList
                 <ExternalLink className="size-3.5" />
               </Link>
             )}
@@ -387,16 +465,14 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
 
 /* -------------------------------------------------------------------------- */
 
-function Stat({
+function Fact({
+  icon,
   label,
   value,
-  color,
-  icon,
 }: {
+  icon: React.ReactNode;
   label: string;
   value: string;
-  color?: string;
-  icon?: React.ReactNode;
 }) {
   return (
     <GlassPanel level="subtle" radius="xl" className="p-3.5">
@@ -404,9 +480,7 @@ function Stat({
         {icon}
         {label}
       </p>
-      <p className="numeral text-2xl leading-none sm:text-3xl" style={{ color }}>
-        {value}
-      </p>
+      <p className="numeral text-2xl leading-none">{value}</p>
     </GlassPanel>
   );
 }
@@ -419,24 +493,11 @@ function Dot() {
   );
 }
 
-function Detail({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
+function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div className="border-hairline flex items-baseline justify-between gap-4 border-b py-2.5 last:border-0">
       <dt className="text-fg-3 shrink-0 text-xs">{label}</dt>
-      <dd
-        className="text-right text-[13px] font-medium"
-        style={highlight ? { color: "var(--accent)" } : undefined}
-      >
-        {value}
-      </dd>
+      <dd className="text-right text-[13px] font-medium">{value}</dd>
     </div>
   );
 }
