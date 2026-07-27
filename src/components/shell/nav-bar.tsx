@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
-import { CalendarDays, Compass, Home, Library } from "lucide-react";
 
 import type { Profile } from "@/lib/types/database";
 import { cn } from "@/lib/utils";
@@ -12,31 +11,44 @@ import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
 
 const LINKS = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/discover", label: "Discover", icon: Compass },
-  { href: "/library", label: "Library", icon: Library },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/", label: "Home" },
+  { href: "/discover", label: "Discover" },
+  { href: "/library", label: "Library" },
+  { href: "/calendar", label: "Calendar" },
 ] as const;
 
+/**
+ * A single 48px bar pinned to the top.
+ *
+ * It was 56px tall with a 36px avatar, a 36px toggle, a 36px search field and
+ * icon-plus-label nav pills — seven rounded shapes at four different heights
+ * competing along one line. Everything interactive is 32px now and shares a
+ * baseline, the nav items lost their icons (the word is the affordance), and
+ * the bar is a rounded rectangle rather than a full pill so it reads as a bar
+ * rather than a floating lozenge.
+ */
 export function NavBar({ profile }: { profile: Profile | null }) {
   const pathname = usePathname();
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 px-4 pt-3 sm:px-6 lg:px-10">
-      <nav className="glass-heavy specular mx-auto flex h-14 w-full max-w-[1600px] items-center gap-2 rounded-pill px-3 sm:gap-4 sm:px-4">
+    <header
+      className="fixed inset-x-0 top-0 px-3 pt-2.5 sm:px-5 lg:px-8"
+      style={{ zIndex: "var(--z-nav)" as unknown as number }}
+    >
+      <nav className="glass-heavy mx-auto flex h-12 w-full max-w-[1600px] items-center gap-2 rounded-2xl px-2.5 sm:gap-3 sm:px-3">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2 pr-1 pl-1.5 sm:pl-2"
+          className="flex shrink-0 items-center gap-2 pr-1"
           aria-label="Stack — home"
         >
           <StackMark />
-          <span className="hidden text-[15px] font-semibold tracking-tight sm:inline">
+          <span className="hidden text-[14px] font-bold tracking-[-0.02em] sm:inline">
             Stack
           </span>
         </Link>
 
-        <div className="hidden items-center gap-0.5 lg:flex">
-          {LINKS.map(({ href, label, icon: Icon }) => {
+        <div className="hidden items-center gap-0.5 md:flex">
+          {LINKS.map(({ href, label }) => {
             const active =
               href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
@@ -44,27 +56,24 @@ export function NavBar({ profile }: { profile: Profile | null }) {
                 key={href}
                 href={href}
                 className={cn(
-                  "relative rounded-pill px-3.5 py-2 text-sm font-medium transition-colors duration-200",
+                  "relative rounded-lg px-2.5 py-1.5 text-[13px] font-semibold tracking-tight transition-colors duration-200",
                   active ? "text-fg" : "text-fg-3 hover:text-fg-2",
                 )}
               >
                 {active && (
                   <motion.span
                     layoutId="nav-pill"
-                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                    className="absolute inset-0 rounded-pill border border-hairline bg-[var(--glass-2)]"
+                    transition={{ type: "spring", stiffness: 480, damping: 38 }}
+                    className="absolute inset-0 rounded-lg bg-[var(--glass-2)]"
                   />
                 )}
-                <span className="relative z-1 inline-flex items-center gap-2">
-                  <Icon className="size-4" strokeWidth={2.2} />
-                  {label}
-                </span>
+                <span className="relative z-1">{label}</span>
               </Link>
             );
           })}
         </div>
 
-        <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2">
+        <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:gap-2">
           <QuickSearch />
           <ThemeToggle />
           <UserMenu profile={profile} />
@@ -76,16 +85,16 @@ export function NavBar({ profile }: { profile: Profile | null }) {
 
 function StackMark() {
   return (
-    <svg viewBox="0 0 64 64" className="size-7" aria-hidden>
+    <svg viewBox="0 0 64 64" className="size-6" aria-hidden>
       <defs>
         <linearGradient id="stack-mark" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="var(--color-anime)" />
           <stop offset="100%" stopColor="var(--color-manga)" />
         </linearGradient>
       </defs>
-      <rect x="14" y="36" width="36" height="9" rx="4.5" fill="url(#stack-mark)" opacity="0.35" />
-      <rect x="14" y="26" width="36" height="9" rx="4.5" fill="url(#stack-mark)" opacity="0.65" />
-      <rect x="14" y="16" width="36" height="9" rx="4.5" fill="url(#stack-mark)" />
+      <rect x="14" y="37" width="36" height="8" rx="4" fill="url(#stack-mark)" opacity="0.35" />
+      <rect x="14" y="27" width="36" height="8" rx="4" fill="url(#stack-mark)" opacity="0.65" />
+      <rect x="14" y="17" width="36" height="8" rx="4" fill="url(#stack-mark)" />
     </svg>
   );
 }

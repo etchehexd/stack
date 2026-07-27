@@ -41,6 +41,20 @@
   --ease-spring-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* --- Layer order ----------------------------------------------------------
+   The whole app's stacking, in one place. Anything that floats above the page
+   MUST take its z-index from here rather than inventing a number, and anything
+   that floats above a PANEL must be portalled to <body> (see ui/popover.tsx) —
+   `specular` sets `isolation: isolate`, so a z-index inside a panel can only
+   ever order that panel's own children. */
+:root {
+  --z-sticky: 20;
+  --z-nav: 40;
+  --z-popover: 70;
+  --z-sheet: 80;
+  --z-toast: 90;
+}
+
 /* --- Semantic surface tokens (theme-dependent) --------------------------- */
 :root,
 :root[data-theme="dark"] {

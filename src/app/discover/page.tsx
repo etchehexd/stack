@@ -69,7 +69,7 @@ export default async function DiscoverPage(props: PageProps<"/discover">) {
     getCurrentUser(),
   ]);
 
-  const ratings = user ? await getRatingsMap(user.id) : new Map();
+  const ratings = user ? await getRatingsMap(user.id) : new Map<string, number>();
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
@@ -94,7 +94,7 @@ export default async function DiscoverPage(props: PageProps<"/discover">) {
               <TitleCard
                 key={result.id}
                 title={result}
-                rating={ratings.get(result.id) ?? null}
+                score={ratings.get(result.id) ?? null}
                 priority={i < 6}
               />
             ))}

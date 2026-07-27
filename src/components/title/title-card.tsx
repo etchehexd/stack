@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { DualScore, Score } from "@/components/rating/score";
+import { ScoreChip } from "@/components/rating/score-chip";
 import type { MediaType } from "@/lib/types/database";
 import { cn, displayTitle, formatLabel, mediaAccent } from "@/lib/utils";
 
@@ -24,9 +24,8 @@ export interface TitleCardData {
 
 export interface TitleCardProps {
   title: TitleCardData;
-  /** The viewer's own rating, if any. Takes over the score slot when present. */
-  rating?: { enjoyment: number | null; craft: number | null } | null;
-  /** Slot for a progress bar or quick-action button under the cover. */
+  /** The viewer's own 0–10 score. Replaces the catalog average when present. */
+  score?: number | null;
   footer?: React.ReactNode;
   priority?: boolean;
   className?: string;
@@ -35,15 +34,17 @@ export interface TitleCardProps {
 /**
  * A poster.
  *
- * The art is the card — everything else is a thin band along the bottom edge.
- * The score sits over the poster rather than under it so the eye lands on
- * artwork and figure together, and the artwork's own colour bleeds out behind
- * the card on hover (see `--art`), which is what stops a grid of these reading
- * as a spreadsheet of rectangles.
+ * The score sits in the bottom-left corner of the art as a bare numeral with a
+ * short colour rule under it — no pill, no plate, no background. That keeps it
+ * to roughly two characters' worth of the poster while still being the first
+ * thing you can read, because it's the only text on the image.
+ *
+ * A viewer's own score displaces the catalog average and is drawn in its band
+ * colour rather than white, so the two can never be mistaken for each other.
  */
 export function TitleCard({
   title,
-  rating,
+  score,
   footer,
   priority = false,
   className,
@@ -51,9 +52,6 @@ export function TitleCard({
   const accent = mediaAccent(title.media_type);
   const name = displayTitle(title);
   const art = title.cover_color ?? accent;
-  const rated = Boolean(
-    rating && (rating.enjoyment != null || rating.craft != null),
-  );
 
   return (
     <article
@@ -62,7 +60,7 @@ export function TitleCard({
     >
       <Link
         href={`/title/${title.id}`}
-        className="art-glow art-edge lift relative block aspect-[2/3] overflow-hidden rounded-lg"
+        className="art-glow art-edge lift relative block aspect-[2/3] overflow-hidden rounded-xl"
         style={{ background: art }}
       >
         {title.cover_image_large ? (
@@ -71,8 +69,8 @@ export function TitleCard({
             alt=""
             fill
             priority={priority}
-            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 220px"
-            className="object-cover transition-transform duration-[600ms] [transition-timing-function:var(--ease-glass)] group-hover/card:scale-[1.05]"
+            sizes="(max-width: 640px) 40vw, 200px"
+            className="object-cover transition-transform duration-[600ms] [transition-timing-function:var(--ease-glass)] group-hover/card:scale-[1.06]"
           />
         ) : (
           <div className="text-fg-3 grid size-full place-items-center p-2 text-center text-xs">
@@ -80,33 +78,27 @@ export function TitleCard({
           </div>
         )}
 
-        {/* Bottom scrim. Always on — it's what the score sits on, not a hover
-            flourish — and deep enough to survive a white-heavy cover. */}
+        {/* Just enough scrim to carry the numeral, kept to the bottom third. */}
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[45%]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[38%]"
           style={{
             background:
-              "linear-gradient(to top, oklch(0 0 0 / 0.88) 0%, oklch(0 0 0 / 0.55) 45%, transparent 100%)",
+              "linear-gradient(to top, oklch(0 0 0 / 0.82) 0%, oklch(0 0 0 / 0.35) 55%, transparent 100%)",
           }}
           aria-hidden
         />
 
-        {/* Media-type hairline along the top edge. */}
         <span
           className="absolute inset-x-0 top-0 h-[3px]"
           style={{ background: accent }}
           aria-hidden
         />
 
-        <div className="absolute inset-x-2.5 bottom-2.5">
-          {rated ? (
-            <DualScore
-              enjoyment={rating!.enjoyment}
-              craft={rating!.craft}
-              size="xs"
-            />
+        <div className="absolute bottom-2 left-2.5">
+          {score != null ? (
+            <ScoreChip score={score} mine size="md" />
           ) : (
-            <Score percent={title.average_score} size="sm" className="!p-0" />
+            <ScoreChip percent={title.average_score} size="md" />
           )}
         </div>
       </Link>

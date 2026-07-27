@@ -8,13 +8,16 @@ one-file edits.
 
 | Decision | Where |
 | --- | --- |
-| **"Overall" averages the two axes evenly (50/50)**, as you specified, and is **off by default** — users opt in under Settings → Ratings. | `src/lib/rating.ts` → `OVERALL_WEIGHT_ENJOYMENT` / `OVERALL_WEIGHT_CRAFT`. Delete `overallScore()` and the `"Overall"` entry in `SORT_OPTIONS` to remove the feature entirely; nothing else imports it. |
-| **Re-tapping the value you already have clears the rating** (Letterboxd behaviour). | `StarRow.pick()` in `src/components/rating/star-row.tsx` |
-| **The two axes are independent — you can set Craft without Enjoyment.** A row with both cleared is deleted rather than stored empty. | `saveRating()` in `src/app/actions/rating.ts`; enforced by the `ratings_not_empty` constraint |
-| **Ratings save automatically after a 600 ms pause.** No submit button. | `RatingPad` debounce in `src/components/rating/rating-pad.tsx` |
-| **The quadrant boundary is 3.5**, so exactly 3.5 counts as "high" on that axis. | `QUADRANT_PIVOT` in `src/lib/rating.ts` (also hardcoded in the `user_stats` SQL function — change both) |
+| **You never type a score after the first ten.** Asking someone to choose between 7.4 and 7.8 gets a different answer depending on their mood; asking which of two shows they preferred gets the same answer twice. Only the second question is asked. | `RatingDialog` in `src/components/rating/rating-dialog.tsx` |
+| **Three buckets, not five.** Loved / fine / bad. Every extra bucket is a decision the user has to make *before* the easy part starts, and the comparisons recover the resolution anyway. | `BUCKETS` in `src/lib/rating.ts` — bands must match `bucket_band()` in the schema |
+| **Bands are 0.1–3.3 / 3.4–6.7 / 6.8–10.0.** A title alone in its bucket sits at the band midpoint, not the top: one rating is not evidence that something is your favourite ever. | `bucket_band()` and `respread_bucket()` in `supabase/schema.sql` |
+| **Scores move when you rate other things.** A placement respreads its whole bucket. This is the model working, not a bug — a 9.1 is a statement about the ordering, not about the title. | `respread_bucket()` |
+| **Comparisons are capped at 7.** log2 of a large bucket is 8–9 questions, which nobody will sit through. At the cap the midpoint of the remaining range is taken; being two places out in a list of 300 moves the score by under a tenth. | `MAX_COMPARISONS` in `src/lib/rating.ts` |
+| **The first 10 ratings are typed in and keep the exact number given.** There is nothing to compare against yet. The first comparison in a bucket takes those seeds relative too. | `seed_rating()`; `SEED_TARGET` in `src/lib/rating.ts` |
+| **The binary search runs on the client.** One request to fetch the bucket, one to commit — not a round trip per question. | `getBucketList()` in `src/app/actions/rating.ts` |
+| **Placement is a single SECURITY DEFINER RPC** acting on `auth.uid()`, so a caller can never reorder someone else's list and a placement cannot half-apply. | `place_rating()` |
+| **Old two-axis ratings were migrated, not dropped** — the mean of enjoyment and craft, doubled, is the same 0–10 figure. | the guarded `do $$` block in §7 of `supabase/schema.sql` |
 | **Unrated titles sort to the bottom**, not as zero. | `LibraryView` sort comparator |
-| Keyboard on a focused star row: arrows step ±0.5, Home/End jump to min/max, Backspace clears. | `StarRow.onKeyDown` |
 
 ## Volume tracking
 
@@ -67,14 +70,16 @@ See `VolumeField` in `src/components/library/progress-stepper.tsx`.
 | **Dark mode is the default**; light mode is fully supported and the choice persists in `localStorage`. | `THEME_BOOTSTRAP` in `src/app/layout.tsx` |
 | **Hand-built glass primitives instead of the shadcn/ui CLI.** shadcn components are opaque-surface-first; retrofitting the blur/specular/depth system onto them meant rewriting most of each one anyway. The primitives in `src/components/ui/` follow the same composition patterns (cva variants, forwardRef, `cn()`), so `npx shadcn add` still works if you want to pull in something specific later. | `src/components/ui/` |
 | **Four blur levels, seven radii, one specular treatment.** Enforced by tokens rather than convention. | `src/app/globals.css` |
-| Media accents: anime = periwinkle, manga = rose, light novels = jade. Rating axes: Enjoyment = warm amber, Craft = cool cyan (heart vs. head). | `@theme` block in `globals.css` |
+| Media accents: anime = periwinkle, manga = rose, light novels = jade. Score bands: loved = green, fine = amber, bad = red. | `@theme` block in `globals.css`; `BUCKETS` in `src/lib/rating.ts` |
 | **Glass fills are mostly opaque (0.62 / 0.82 / 0.93).** The frosted look comes from blur, saturation and the specular rim — not from transparency. Anything much lower lets scrolling content read through floating panels, which looks broken rather than layered. | `--glass-1/2/3` in `globals.css` |
 | **Blur only floats, tint insets.** Only `glass-heavy` (nav, tab bar, menus, popovers) and `glass-scrim` blur. `glass` — the stationary content panels — and `glass-subtle` are tint-only: a panel in the page flow has nothing behind it but the flat backdrop, so the filter was paying full GPU cost per scroll frame to blur one solid colour, and nesting one blur inside another is what produces smeared artifacts. | `@utility glass`, `@utility glass-subtle` |
-| **The axis word is a spaced small-caps label, not a coloured chip.** A tinted label next to tinted stars put two blocks of the same hue side by side; as a recessive label the data keeps the colour. Used for "Enjoyment", "Craft", stat-tile labels and the title-page metadata line. | `@utility axis-caps` in `globals.css` |
-| **Every score displays as 0–10 with one decimal.** Stars remain the input at 0.5–5 and are doubled; AniList percentages are tenthed. Two conversion functions, one scale, no mixed units on a card. | `formatTen()` / `formatPercentAsTen()` in `src/lib/rating.ts` |
-| **No charts anywhere.** The scatter plot, the community histograms, the profile chart and the plane glyph were removed outright — they were the most visually complex thing on every page and the least useful. Scores are numbers with fill bars now. | `src/components/rating/score.tsx` |
+| **Small-caps labels, not coloured chips.** Used for bucket names, stat-tile labels and the title-page metadata line. A tinted chip beside tinted data puts two blocks of the same hue side by side; a recessive label lets the data keep the colour. | `@utility axis-caps` in `globals.css` |
+| **Every score displays as 0–10 with one decimal.** User scores are already on that scale; AniList's 0–100 percentage is tenthed. One conversion function, no mixed units on a card. | `formatScore()` / `formatPercentAsTen()` in `src/lib/rating.ts` |
+| **No charts anywhere.** The scatter plot, the community histograms, the profile chart and the plane glyph were all removed. Scores are numerals; the only chart-like thing left is the profile's bucket bar, which is one stacked line. | `src/components/rating/score-chip.tsx` |
+| **The score on a poster is a bare numeral with a colour rule** — no pill, no plate, no background. That keeps it to about two characters of the artwork while still being the first thing readable, because it's the only text on the image. | `ScoreChip` in `src/components/rating/score-chip.tsx` |
+| **Every menu portals to `<body>`.** `specular` sets `isolation: isolate`, so a z-index inside a panel can only order that panel's own children — which is why dropdowns kept ending up behind other panels and becoming unclickable. There is one z-index scale and one portal. Never re-add an absolutely positioned menu. | `src/components/ui/popover.tsx`; `--z-*` in `globals.css` |
 | **The artwork tints its own surroundings.** Cards, the detail hero and the home lead all set `--art` from the title's sampled cover colour and spend it on a bloom, a hairline and a wash. It is the main reason two pages of identical layout do not look identical. | `--art`, `@utility art-glow` / `art-edge` in `globals.css` |
-| **No serif display face was introduced.** The "editorial" treatment for the stars and community readout is delivered through small caps, spacing and hierarchy instead, so it stays coherent with the iOS-glass chrome rather than fighting it. | — |
+| **The home page is a stack of full-width rows.** Two shelves side by side halved every poster and put two competing scroll directions on one line. | `TitleRow` in `src/components/title/title-row.tsx` |
 | **No decorative gradients on large surfaces.** The background is flat with one faint neutral lift; empty profile banners and missing title banners are flat tints. Colour comes from cover art and from the accents, which carry meaning. | `.ambient-field`, profile/title banner fallbacks |
 | **Never hand-write vendor prefixes in `globals.css`.** Lightning CSS (via Tailwind v4) adds them from your browser targets. Writing `-webkit-backdrop-filter` alongside the standard property made it keep only the prefixed one — see the note below. | comment above `@utility glass` |
 
@@ -98,8 +103,9 @@ Scoped out of this pass, in rough order of how much is already in place:
   tested; no follow button or feed page.
 - **MAL/AniList import** — nothing yet. The natural shape is a route handler that
   takes an AniList username, queries their `MediaListCollection`, and bulk-upserts
-  `library_entries` + `ratings` (mapping their 1–100 score onto whichever axis
-  you decide — probably Enjoyment, leaving Craft blank).
+  `library_entries` plus a `seed_rating()` call per scored title (their 0–100
+  divided by 10 lands directly on this scale). Import as seeds, not placements —
+  the buckets sort themselves out on the first comparison.
 - **Yearly Wrapped** — nothing yet; `user_stats()` already computes most of the
   inputs.
 - **Episode notifications** — needs a push/email provider.

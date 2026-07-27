@@ -4,9 +4,9 @@ import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "motion/react";
 import { Loader2, Search } from "lucide-react";
 
+import { Popover } from "@/components/ui/popover";
 import { createClient } from "@/lib/supabase/client";
 import type { SearchResult } from "@/lib/types/database";
 import {
@@ -31,6 +31,7 @@ export function QuickSearch() {
   const [highlight, setHighlight] = React.useState(0);
 
   const wrapperRef = React.useRef<HTMLDivElement>(null);
+  const fieldRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   // ⌘K / Ctrl+K focuses the field.
@@ -119,7 +120,7 @@ export function QuickSearch() {
 
   return (
     <div ref={wrapperRef} className="relative min-w-0 flex-1 sm:max-w-xs">
-      <div className="glass-subtle specular flex h-9 items-center gap-2 rounded-pill px-3">
+      <div ref={fieldRef} className="glass-subtle flex h-8 items-center gap-2 rounded-full px-3">
         {loading ? (
           <Loader2 className="text-fg-3 size-4 shrink-0 animate-spin" />
         ) : (
@@ -145,15 +146,13 @@ export function QuickSearch() {
         </kbd>
       </div>
 
-      <AnimatePresence>
-        {open && query.trim().length >= 2 && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
-            className="glass-heavy specular absolute top-11 right-0 left-0 z-50 origin-top overflow-hidden rounded-lg p-1.5 max-sm:fixed max-sm:right-4 max-sm:left-4"
-          >
+      <Popover
+        open={open && query.trim().length >= 2}
+        onClose={() => setOpen(false)}
+        anchorRef={fieldRef}
+        align="start"
+        width="anchor"
+      >
             {visibleResults.length === 0 && !loading && (
               <p className="text-fg-3 px-3 py-4 text-center text-sm">
                 No titles matched &ldquo;{query.trim()}&rdquo;.
@@ -212,9 +211,7 @@ export function QuickSearch() {
                 See all results for &ldquo;{query.trim()}&rdquo;
               </Link>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                </Popover>
     </div>
   );
 }

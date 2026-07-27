@@ -135,7 +135,7 @@ export function DiscoverFilters({ facets, total }: DiscoverFiltersProps) {
   return (
     // `heavy` because this floats above a scrolling grid of cover art — a
     // lighter fill lets the artwork read through and looks like a rendering bug.
-    <GlassPanel level="heavy" radius="xl" className="sticky top-20 z-20 p-4">
+    <GlassPanel level="heavy" radius="xl" className="sticky top-[4.25rem] p-4" style={{ zIndex: "var(--z-sticky)" as unknown as number }}>
       {/* --- Row 1: search + media type + sort ----------------------------- */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="glass-subtle specular flex h-10 min-w-0 flex-1 items-center gap-2 rounded-pill px-3.5 sm:max-w-sm">

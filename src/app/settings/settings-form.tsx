@@ -8,11 +8,7 @@ import { Button } from "@/components/ui/button";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import type { ActionResult } from "@/app/actions/rating";
 import type { Profile } from "@/lib/types/database";
-import {
-  AXIS_META,
-  OVERALL_WEIGHT_CRAFT,
-  OVERALL_WEIGHT_ENJOYMENT,
-} from "@/lib/rating";
+import { SEED_TARGET } from "@/lib/rating";
 
 const INITIAL: ActionResult = { ok: false };
 
@@ -57,24 +53,17 @@ export function SettingsForm({ profile }: { profile: Profile }) {
         />
       </GlassPanel>
 
-      <GlassPanel radius="xl" className="space-y-4 p-6">
+      <GlassPanel radius="xl" className="space-y-3 p-6">
         <h2 className="panel-title">Ratings</h2>
-
-        <Toggle
-          name="overallSortEnabled"
-          defaultChecked={profile.preferences?.overall_sort_enabled ?? false}
-          label="Enable the “Overall” sort"
-          description={
-            <>
-              Adds a single-number sort option to your library, averaging{" "}
-              <span style={{ color: AXIS_META.enjoyment.color }}>Enjoyment</span> and{" "}
-              <span style={{ color: AXIS_META.craft.color }}>Craft</span> evenly (
-              {OVERALL_WEIGHT_ENJOYMENT * 100}/{OVERALL_WEIGHT_CRAFT * 100}). Off by
-              default — the two axes are still always shown separately, never blended
-              in the UI.
-            </>
-          }
-        />
+        <p className="text-fg-2 text-sm leading-relaxed">
+          Your first {SEED_TARGET} ratings are typed in directly. After that
+          Stack stops asking for numbers and asks you to compare instead — a few
+          taps per title, and the score is worked out from where it lands.
+        </p>
+        <p className="text-fg-3 text-sm leading-relaxed">
+          Scores shift as your list grows. That is the point: a 9.1 means
+          &ldquo;ninth-best thing I&rsquo;ve seen&rdquo;, and that changes.
+        </p>
       </GlassPanel>
 
       <div className="flex items-center gap-3">

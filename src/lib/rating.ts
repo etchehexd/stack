@@ -1,153 +1,176 @@
 /**
- * The two-axis rating system.
+ * The rating system.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * IMPORTANT: Enjoyment and Craft are independent. Nothing in this app collapses
- * them into a single score except `overallScore()` below, which is:
- *   - opt-in (profiles.preferences.overall_sort_enabled, default false)
- *   - used ONLY for sorting, never for display next to a title
- *   - deliberately isolated in this file so it can be reweighted or deleted
- *     without touching anything else. Change ONLY `overallScore` to reweight.
+ * A score is NOT a number you choose. It is a position in your own ordered
+ * list, expressed as a 0–10 figure.
+ *
+ * Asking someone "is this a 7.4 or a 7.8" is a question nobody can answer
+ * consistently — the same show gets a different number depending on your mood
+ * and what you watched last. Asking "did you like this more than that one" is
+ * a question everybody can answer instantly and answers the same way twice.
+ * So that is the only question this app asks.
+ *
+ * How a rating happens:
+ *
+ *   1. You pick one of three buckets — loved / fine / bad.
+ *   2. The app binary-searches that bucket, showing you one already-rated
+ *      title at a time: "which did you prefer?". About log2(n) questions, so
+ *      five taps places a title among thirty.
+ *   3. Everything in the bucket is respread evenly across the bucket's slice
+ *      of the 0–10 scale. Your scores shift as your list grows. That is
+ *      correct: a 9.1 means "ninth-best thing I've seen", and that changes.
+ *
+ * Before you have SEED_TARGET ratings there is nothing to compare against, so
+ * those first few are typed in directly and keep the exact number you gave.
+ * The first comparison in a bucket takes them relative too.
+ *
+ * The server owns all of this — see place_rating() / seed_rating() /
+ * respread_bucket() in supabase/schema.sql. This file is the client's copy of
+ * the constants plus the binary-search driver.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-export const RATING_MIN = 0.5;
-export const RATING_MAX = 5.0;
-export const RATING_STEP = 0.5;
-export const STAR_COUNT = 5;
+export const SCORE_MIN = 0.1;
+export const SCORE_MAX = 10.0;
 
-/** The midpoint that divides the quadrants. Titles at exactly 3.5 read as "high". */
-export const QUADRANT_PIVOT = 3.5;
+/** Direct-entry ratings required before comparison unlocks. */
+export const SEED_TARGET = 10;
 
-export type Axis = "enjoyment" | "craft";
+/**
+ * Hard ceiling on questions per placement. log2 of a big bucket is 8–9, which
+ * is more taps than anyone will tolerate; at the cap we stop and take the
+ * midpoint of whatever range is left. Being one or two places off in a list of
+ * three hundred moves the score by less than a tenth.
+ */
+export const MAX_COMPARISONS = 7;
 
-export const AXIS_META: Record<
-  Axis,
-  { label: string; blurb: string; color: string }
-> = {
-  enjoyment: {
-    label: "Enjoyment",
-    blurb: "How much you personally liked it",
-    color: "var(--color-enjoyment)",
-  },
-  craft: {
-    label: "Craft",
-    blurb: "How well-made it is — writing, art, pacing, direction",
-    color: "var(--color-craft)",
-  },
-};
+export type Bucket = "loved" | "fine" | "bad";
 
-/** Snap any raw value onto the legal 0.5-step grid, clamped to [0.5, 5]. */
-export function snapToStep(value: number): number {
-  const snapped = Math.round(value / RATING_STEP) * RATING_STEP;
-  return Math.min(RATING_MAX, Math.max(RATING_MIN, Number(snapped.toFixed(1))));
-}
-
-export function isValidRating(value: number | null | undefined): boolean {
-  if (value == null) return false;
-  return (
-    value >= RATING_MIN && value <= RATING_MAX && Math.abs(value * 2 - Math.round(value * 2)) < 1e-9
-  );
-}
-
-/** 4.5 -> "4½", 4.0 -> "4". Used where space is tight. */
-export function prettyStars(value: number | null): string {
-  if (value == null) return "–";
-  const whole = Math.floor(value);
-  const half = value % 1 !== 0;
-  if (whole === 0) return "½";
-  return half ? `${whole}½` : `${whole}`;
-}
-
-/** Star rating -> the 1–10 scale people are used to quoting. */
-export function toTenScale(value: number | null): number | null {
-  return value == null ? null : value * 2;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Quadrants                                                                  */
-/* -------------------------------------------------------------------------- */
-
-export type QuadrantKey = "favorites" | "guilty" | "respected" | "notforyou";
-
-export interface QuadrantMeta {
-  key: QuadrantKey;
+export interface BucketMeta {
+  key: Bucket;
+  /** The word on the button. */
   label: string;
-  description: string;
-  /** Where the quadrant sits on the grid, for tinting the scatter background. */
-  corner: "top-right" | "bottom-right" | "top-left" | "bottom-left";
+  /** What picking it commits you to, in one short line. */
+  blurb: string;
   color: string;
+  /** [lo, hi] — must match bucket_band() in schema.sql. */
+  band: [number, number];
 }
 
-export const QUADRANTS: Record<QuadrantKey, QuadrantMeta> = {
-  favorites: {
-    key: "favorites",
-    label: "All-time favorites",
-    description: "Loved them, and they earned it.",
-    corner: "top-right",
-    color: "oklch(0.78 0.16 145)",
+export const BUCKETS: Record<Bucket, BucketMeta> = {
+  loved: {
+    key: "loved",
+    label: "Loved it",
+    blurb: "Would recommend without hedging",
+    color: "oklch(0.78 0.16 152)",
+    band: [6.8, 10.0],
   },
-  guilty: {
-    key: "guilty",
-    label: "Guilty pleasures",
-    description: "Not a masterpiece. Don't care.",
-    corner: "bottom-right",
-    color: "var(--color-enjoyment)",
+  fine: {
+    key: "fine",
+    label: "It was fine",
+    blurb: "Glad I watched it, no strong feelings",
+    color: "oklch(0.82 0.15 85)",
+    band: [3.4, 6.7],
   },
-  respected: {
-    key: "respected",
-    label: "Respected, not for me",
-    description: "Undeniably well-made. Just didn't land.",
-    corner: "top-left",
-    color: "var(--color-craft)",
-  },
-  notforyou: {
-    key: "notforyou",
-    label: "Not for you",
-    description: "Didn't work on either axis.",
-    corner: "bottom-left",
-    color: "oklch(0.6 0.05 280)",
+  bad: {
+    key: "bad",
+    label: "Didn't like it",
+    blurb: "Wouldn't put anyone else through it",
+    color: "oklch(0.68 0.16 25)",
+    band: [0.1, 3.3],
   },
 };
 
-/** X axis = enjoyment, Y axis = craft. */
-export function quadrantOf(
-  enjoyment: number | null,
-  craft: number | null,
-): QuadrantMeta | null {
-  if (enjoyment == null || craft == null) return null;
-  const highE = enjoyment >= QUADRANT_PIVOT;
-  const highC = craft >= QUADRANT_PIVOT;
-  if (highE && highC) return QUADRANTS.favorites;
-  if (highE && !highC) return QUADRANTS.guilty;
-  if (!highE && highC) return QUADRANTS.respected;
-  return QUADRANTS.notforyou;
+/** Buckets in the order they're offered: best first. */
+export const BUCKET_ORDER: Bucket[] = ["loved", "fine", "bad"];
+
+export function bucketOf(score: number | null | undefined): Bucket | null {
+  if (score == null) return null;
+  if (score >= BUCKETS.loved.band[0]) return "loved";
+  if (score >= BUCKETS.fine.band[0]) return "fine";
+  return "bad";
+}
+
+/** 8.4 → "8.4". Null-safe. */
+export function formatScore(score: number | null | undefined): string {
+  if (score == null) return "—";
+  return Number(score).toFixed(1);
+}
+
+/** AniList stores a 0–100 percentage; every score on screen is 0–10. */
+export function percentToTen(percent: number | null | undefined): number | null {
+  if (percent == null) return null;
+  return Math.round(percent) / 10;
+}
+
+export function formatPercentAsTen(percent: number | null | undefined): string {
+  const ten = percentToTen(percent);
+  return ten == null ? "—" : ten.toFixed(1);
+}
+
+/** The colour a score is drawn in. Three bands, so 9.1 and 9.4 always match. */
+export function scoreColor(score: number | null | undefined): string {
+  const bucket = bucketOf(score);
+  return bucket ? BUCKETS[bucket].color : "var(--text-tertiary)";
 }
 
 /* -------------------------------------------------------------------------- */
-/* Optional composite score — the ONLY place the two axes are blended          */
+/* Binary insertion                                                           */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Even 50/50 average of Enjoyment and Craft.
+ * A placement in progress.
  *
- * To reweight (e.g. 60% enjoyment), change ONLY these two constants. To remove
- * the feature entirely, delete this function and the "Overall" entry from
- * SORT_OPTIONS below — nothing else depends on it.
+ * `lo` and `hi` bracket the insert position in a list held in ASCENDING order
+ * (index 0 = the worst thing in the bucket). When they meet, `lo` is the
+ * answer and it is exactly the `p_position` that place_rating() wants.
  */
-export const OVERALL_WEIGHT_ENJOYMENT = 0.5;
-export const OVERALL_WEIGHT_CRAFT = 0.5;
+export interface Placement {
+  lo: number;
+  hi: number;
+  asked: number;
+}
 
-export function overallScore(
-  enjoyment: number | null,
-  craft: number | null,
-): number | null {
-  if (enjoyment == null && craft == null) return null;
-  // If only one axis is set, that axis *is* the overall score.
-  if (enjoyment == null) return craft;
-  if (craft == null) return enjoyment;
-  return (
-    enjoyment * OVERALL_WEIGHT_ENJOYMENT + craft * OVERALL_WEIGHT_CRAFT
+export function startPlacement(bucketSize: number): Placement {
+  return { lo: 0, hi: bucketSize, asked: 0 };
+}
+
+export function placementDone(p: Placement): boolean {
+  return p.lo >= p.hi || p.asked >= MAX_COMPARISONS;
+}
+
+/** Index of the already-rated title to show next. Only valid while not done. */
+export function pivotIndex(p: Placement): number {
+  return Math.floor((p.lo + p.hi) / 2);
+}
+
+/**
+ * Record an answer. `preferredNew` is true when the user picked the title
+ * being rated over the one at the pivot.
+ */
+export function advance(p: Placement, preferredNew: boolean): Placement {
+  const mid = pivotIndex(p);
+  return preferredNew
+    ? { lo: mid + 1, hi: p.hi, asked: p.asked + 1 }
+    : { lo: p.lo, hi: mid, asked: p.asked + 1 };
+}
+
+/** Where the title ends up. Safe to call at any point. */
+export function placementResult(p: Placement): number {
+  return p.lo >= p.hi ? p.lo : Math.floor((p.lo + p.hi) / 2);
+}
+
+/**
+ * Upper bound on remaining questions, for the progress dots. Deliberately an
+ * estimate — the real count can come in lower when the range collapses early.
+ */
+export function questionsRemaining(p: Placement): number {
+  if (placementDone(p)) return 0;
+  const span = p.hi - p.lo;
+  return Math.min(
+    MAX_COMPARISONS - p.asked,
+    Math.max(1, Math.ceil(Math.log2(span + 1))),
   );
 }
 
@@ -155,81 +178,11 @@ export function overallScore(
 /* Sorting                                                                    */
 /* -------------------------------------------------------------------------- */
 
-export type RatingSortKey = "enjoyment" | "craft" | "overall";
+export type LibrarySortKey = "updated" | "title" | "progress" | "score";
 
-export interface SortOption {
-  key: RatingSortKey;
-  label: string;
-  /** "Overall" is hidden unless the user opted in. */
-  requiresOptIn?: boolean;
-}
-
-export const SORT_OPTIONS: SortOption[] = [
-  { key: "enjoyment", label: "Enjoyment" },
-  { key: "craft", label: "Craft" },
-  { key: "overall", label: "Overall", requiresOptIn: true },
+export const LIBRARY_SORTS: { key: LibrarySortKey; label: string }[] = [
+  { key: "updated", label: "Recently updated" },
+  { key: "score", label: "Highest rated" },
+  { key: "title", label: "A–Z" },
+  { key: "progress", label: "Progress" },
 ];
-
-export function ratingSortValue(
-  key: RatingSortKey,
-  enjoyment: number | null,
-  craft: number | null,
-): number | null {
-  if (key === "enjoyment") return enjoyment;
-  if (key === "craft") return craft;
-  return overallScore(enjoyment, craft);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Display scale                                                              */
-/* -------------------------------------------------------------------------- */
-
-/**
- * EVERY score shown anywhere in this app is on a 0–10 scale with one decimal.
- *
- * There are two sources feeding it and they used to be displayed in their own
- * native units, which meant a card could show "84" from AniList next to "4½"
- * from the user and expect people to hold two scales in their head:
- *
- *   - the user's own axes are stored as 0.5–5.0 half-stars (the star row is
- *     still the input, because clicking five glyphs is faster than typing a
- *     decimal) → doubled for display
- *   - AniList's community average is stored as an integer percentage → tenthed
- *
- * Format through these two functions and nowhere else.
- */
-
-/** Star-scale value (0.5–5) → "9.0". Null-safe; returns a dash. */
-export function formatTen(value: number | null | undefined): string {
-  if (value == null) return "—";
-  return (value * 2).toFixed(1);
-}
-
-/** AniList percentage (0–100) → 8.4. Null-safe. */
-export function percentToTen(percent: number | null | undefined): number | null {
-  if (percent == null) return null;
-  return Math.round(percent) / 10;
-}
-
-/** AniList percentage (0–100) → "8.4". Null-safe; returns a dash. */
-export function formatPercentAsTen(percent: number | null | undefined): string {
-  const ten = percentToTen(percent);
-  return ten == null ? "—" : ten.toFixed(1);
-}
-
-/**
- * Where a 0–10 score sits, for colouring it. Deliberately coarse: three bands,
- * not a continuous ramp, so the same score is always the same colour.
- */
-export function scoreBand(ten: number | null): "high" | "mid" | "low" | null {
-  if (ten == null) return null;
-  if (ten >= 8) return "high";
-  if (ten >= 6.5) return "mid";
-  return "low";
-}
-
-export const BAND_COLOR: Record<"high" | "mid" | "low", string> = {
-  high: "oklch(0.78 0.16 152)",
-  mid: "oklch(0.82 0.15 85)",
-  low: "oklch(0.68 0.15 25)",
-};

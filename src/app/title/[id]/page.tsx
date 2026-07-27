@@ -5,13 +5,13 @@ import { notFound } from "next/navigation";
 import { ExternalLink, Users } from "lucide-react";
 
 import { FavoriteButton } from "./favorite-button";
-import { RatingPad } from "@/components/rating/rating-pad";
-import { DualScore, Score } from "@/components/rating/score";
+import { RateButton } from "@/components/rating/rate-button";
 import { ProgressStepper, VolumeField } from "@/components/library/progress-stepper";
 import { StatusPicker } from "@/components/library/status-picker";
 import { TitleCard } from "@/components/title/title-card";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { getRatedCount } from "@/app/actions/rating";
 import {
   getRelations,
   getTitle,
@@ -19,7 +19,7 @@ import {
   getUserTitleState,
 } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { AXIS_META, formatTen } from "@/lib/rating";
+import { formatPercentAsTen, formatScore, scoreColor } from "@/lib/rating";
 import {
   airingStatusLabel,
   compactNumber,
@@ -59,10 +59,11 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
   const [title, user] = await Promise.all([getTitle(id), getCurrentUser()]);
   if (!title) notFound();
 
-  const [relations, communityRatings, userState] = await Promise.all([
+  const [relations, community, userState, ratedCount] = await Promise.all([
     getRelations(title.id),
     getTitleRatings(title.id),
     getUserTitleState(title.id),
+    user ? getRatedCount() : Promise.resolve(0),
   ]);
 
   const accent = mediaAccent(title.media_type);
@@ -71,30 +72,21 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
   const alt = secondaryTitle(title);
   const total = totalUnits(title);
   const readable = isReadable(title.media_type);
-
-  const myRating = userState.rating
-    ? {
-        enjoyment:
-          userState.rating.enjoyment != null
-            ? Number(userState.rating.enjoyment)
-            : null,
-        craft:
-          userState.rating.craft != null ? Number(userState.rating.craft) : null,
-      }
-    : null;
-
-  // Stack's own averages. Two numbers, computed here because this is the only
-  // page that shows them.
-  const stackAverage = averageOf(communityRatings);
+  const myScore =
+    userState.rating?.score != null ? Number(userState.rating.score) : null;
 
   return (
     <article
-      className="space-y-10"
+      className="pb-4"
       style={{ "--art": art } as React.CSSProperties}
     >
-      {/* ===== Hero ========================================================= */}
-      <section className="relative -mx-4 -mt-20 sm:-mx-6 lg:-mx-10">
-        <div className="relative h-[380px] overflow-hidden sm:h-[440px] lg:h-[500px]">
+      {/* ===================================================================
+          Hero. Full-bleed art, everything else stacked over the bottom of it.
+          One column, so on a phone the poster, the title and the numbers read
+          top to bottom instead of fighting for a narrow row.
+          =================================================================== */}
+      <section className="relative -mx-4 -mt-[4.5rem] sm:-mx-6 lg:-mx-10">
+        <div className="relative h-[420px] overflow-hidden sm:h-[460px] lg:h-[520px]">
           {title.banner_image ? (
             <Image
               src={title.banner_image}
@@ -102,19 +94,25 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
               fill
               priority
               sizes="100vw"
-              className="scale-105 object-cover blur-[2px]"
+              className="scale-105 object-cover"
+            />
+          ) : title.cover_image_large ? (
+            <Image
+              src={title.cover_image_large}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="scale-125 object-cover blur-3xl"
             />
           ) : (
-            <div className="size-full" style={{ background: art, opacity: 0.35 }} />
+            <div className="size-full" style={{ background: art, opacity: 0.4 }} />
           )}
 
-          {/* Two scrims doing different jobs: a wash of the artwork's own
-              colour to tie the header to the poster, and a hard vertical fade
-              so the type below it is legible over anything. */}
           <div
             className="absolute inset-0"
             style={{
-              background: `linear-gradient(115deg, color-mix(in oklch, ${art} 55%, transparent) 0%, transparent 62%)`,
+              background: `linear-gradient(105deg, color-mix(in oklch, ${art} 62%, transparent) 0%, transparent 58%)`,
             }}
             aria-hidden
           />
@@ -122,20 +120,17 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
             className="absolute inset-0"
             style={{
               background:
-                "linear-gradient(to top, var(--bg-deep) 4%, color-mix(in oklch, var(--bg-deep) 78%, transparent) 42%, color-mix(in oklch, var(--bg-deep) 30%, transparent) 100%)",
+                "linear-gradient(to top, var(--bg-deep) 2%, color-mix(in oklch, var(--bg-deep) 82%, transparent) 38%, color-mix(in oklch, var(--bg-deep) 25%, transparent) 100%)",
             }}
             aria-hidden
           />
         </div>
 
-        <div className="absolute inset-x-0 bottom-0 px-4 pb-1 sm:px-6 lg:px-10">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:gap-7">
+        <div className="absolute inset-x-0 bottom-0 px-4 sm:px-6 lg:px-10">
+          <div className="flex items-end gap-4 sm:gap-7">
             <div
-              className="relative aspect-[2/3] w-28 shrink-0 overflow-hidden rounded-xl shadow-[var(--shadow-lift)] sm:w-40 lg:w-48"
-              style={{
-                background: art,
-                border: "1px solid oklch(1 0 0 / 0.14)",
-              }}
+              className="relative aspect-[2/3] w-24 shrink-0 overflow-hidden rounded-2xl shadow-[var(--shadow-lift)] sm:w-40 lg:w-48"
+              style={{ background: art, border: "1px solid oklch(1 0 0 / 0.16)" }}
             >
               {title.cover_image_large && (
                 <Image
@@ -143,14 +138,14 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
                   alt={`Cover art for ${name}`}
                   fill
                   priority
-                  sizes="(max-width: 640px) 112px, (max-width: 1024px) 160px, 192px"
+                  sizes="(max-width: 640px) 96px, (max-width: 1024px) 160px, 192px"
                   className="object-cover"
                 />
               )}
             </div>
 
             <div className="min-w-0 flex-1 pb-1">
-              <div className="axis-caps text-fg-2 mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <div className="axis-caps text-fg-2 mb-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span style={{ color: accent }}>
                   {MEDIA_LABEL_SINGULAR[title.media_type]}
                 </span>
@@ -158,142 +153,126 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
                 <span>{formatLabel(title.format)}</span>
                 <Dot />
                 <span>{airingStatusLabel(title.status)}</span>
-                {title.season && title.season_year && (
+                {title.season_year && (
                   <>
                     <Dot />
-                    <span>
-                      {titleCase(title.season)} {title.season_year}
+                    <span className="tabular-nums">
+                      {title.season ? `${titleCase(title.season)} ` : ""}
+                      {title.season_year}
                     </span>
                   </>
                 )}
               </div>
 
               <h1 className="page-title text-balance-pretty">{name}</h1>
-              {alt && <p className="text-fg-3 mt-2 text-sm">{alt}</p>}
-
-              <div className="mt-4 flex flex-wrap items-end gap-x-7 gap-y-3">
-                {title.average_score != null && (
-                  <div>
-                    <p className="axis-caps text-fg-3 mb-0.5">AniList</p>
-                    <Score percent={title.average_score} size="lg" />
-                  </div>
-                )}
-
-                {stackAverage && (
-                  <div>
-                    <p className="axis-caps text-fg-3 mb-1.5">
-                      Stack · {communityRatings.length}
-                    </p>
-                    <div className="flex items-baseline gap-3">
-                      <BigAxis
-                        value={stackAverage.enjoyment}
-                        color={AXIS_META.enjoyment.color}
-                      />
-                      <span className="text-fg-3 text-xl opacity-30">/</span>
-                      <BigAxis
-                        value={stackAverage.craft}
-                        color={AXIS_META.craft.color}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="text-fg-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-                  {total != null && (
-                    <span className="tabular-nums">
-                      {total} {unitNoun(title.media_type, total !== 1)}
-                    </span>
-                  )}
-                  {title.popularity != null && (
-                    <span className="text-fg-3 inline-flex items-center gap-1.5 tabular-nums">
-                      <Users className="size-3.5" />
-                      {compactNumber(title.popularity)}
-                    </span>
-                  )}
-                </div>
-              </div>
+              {alt && (
+                <p className="text-fg-3 mt-1.5 truncate text-sm">{alt}</p>
+              )}
             </div>
           </div>
         </div>
       </section>
 
-      {/* ===== Tracking bar ================================================= */}
-      {user ? (
-        <GlassPanel
-          radius="xl"
-          className="flex flex-wrap items-center gap-2.5 p-3 sm:px-4"
-        >
-          <StatusPicker
-            titleId={title.id}
-            mediaType={title.media_type}
-            status={userState.entry?.status ?? null}
-          />
-          {userState.entry && (
-            <>
-              <ProgressStepper
-                titleId={title.id}
-                mediaType={title.media_type}
-                total={total}
-                progress={userState.entry.progress}
-              />
-              {readable && (
-                <VolumeField
+      {/* ===================================================================
+          Action bar. Every control that changes something lives on this one
+          line, directly under the hero — you never have to hunt the page for
+          the thing that rates or tracks.
+          =================================================================== */}
+      <GlassPanel
+        radius="2xl"
+        className="mt-5 flex flex-wrap items-center gap-2.5 p-3 sm:px-4"
+      >
+        {user ? (
+          <>
+            <RateButton
+              titleId={title.id}
+              titleName={name}
+              cover={title.cover_image_large}
+              coverColor={title.cover_color}
+              score={myScore}
+              ratedCount={ratedCount}
+            />
+            <StatusPicker
+              titleId={title.id}
+              mediaType={title.media_type}
+              status={userState.entry?.status ?? null}
+            />
+            {userState.entry && (
+              <>
+                <ProgressStepper
                   titleId={title.id}
-                  value={userState.entry.progress_volumes}
-                  knownTotal={title.volumes}
+                  mediaType={title.media_type}
+                  total={total}
+                  progress={userState.entry.progress}
                 />
-              )}
-            </>
-          )}
-          <FavoriteButton titleId={title.id} initial={userState.isFavorite} />
+                {readable && (
+                  <VolumeField
+                    titleId={title.id}
+                    value={userState.entry.progress_volumes}
+                    knownTotal={title.volumes}
+                  />
+                )}
+              </>
+            )}
+            <FavoriteButton titleId={title.id} initial={userState.isFavorite} />
+          </>
+        ) : (
+          <>
+            <p className="text-fg-2 flex-1 text-sm">
+              Sign in to track and rate this.
+            </p>
+            <Link href="/login" className={buttonVariants({ variant: "primary" })}>
+              Sign in
+            </Link>
+          </>
+        )}
+      </GlassPanel>
 
-          {myRating && (
-            <div className="ml-auto flex items-center gap-4 pr-1">
-              <span className="axis-caps text-fg-3 hidden sm:block">You</span>
-              <DualScore
-                enjoyment={myRating.enjoyment}
-                craft={myRating.craft}
-                size="sm"
-                className="w-32"
-              />
-            </div>
-          )}
-        </GlassPanel>
-      ) : (
-        <GlassPanel
-          radius="xl"
-          className="flex flex-wrap items-center justify-between gap-4 p-5"
-        >
-          <p className="text-fg-2 text-sm">
-            Sign in to track and rate this.
-          </p>
-          <Link href="/login" className={buttonVariants({ variant: "primary" })}>
-            Sign in
-          </Link>
-        </GlassPanel>
-      )}
+      {/* ===================================================================
+          Scores. Three figures on one strip, biggest first.
+          =================================================================== */}
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat
+          label="AniList"
+          value={formatPercentAsTen(title.average_score)}
+          color={
+            title.average_score != null
+              ? scoreColor(title.average_score / 10)
+              : undefined
+          }
+        />
+        <Stat
+          label={`Stack · ${community.count}`}
+          value={community.average != null ? formatScore(community.average) : "—"}
+          color={
+            community.average != null ? scoreColor(community.average) : undefined
+          }
+        />
+        <Stat
+          label={total != null ? unitNoun(title.media_type, total !== 1) : "Length"}
+          value={total != null ? String(total) : "—"}
+        />
+        <Stat
+          label="Tracking"
+          value={
+            title.popularity != null ? compactNumber(title.popularity) : "—"
+          }
+          icon={<Users className="size-3.5" />}
+        />
+      </div>
 
-      {/* ===== Body ========================================================= */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="space-y-6">
-          {user && (
-            <GlassPanel radius="xl" className="p-5 sm:p-6">
-              <h2 className="panel-title mb-5">Your rating</h2>
-              <RatingPad
-                titleId={title.id}
-                initialEnjoyment={myRating?.enjoyment ?? null}
-                initialCraft={myRating?.craft ?? null}
-              />
-            </GlassPanel>
-          )}
-
+      {/* ===================================================================
+          Body.
+          =================================================================== */}
+      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="min-w-0 space-y-6">
           {title.synopsis && (
-            <GlassPanel radius="xl" className="p-5 sm:p-6">
+            <section>
               <h2 className="panel-title mb-3">Synopsis</h2>
-              <p className="text-fg-2 text-sm leading-relaxed whitespace-pre-line">
+              <p className="text-fg-2 max-w-prose text-sm leading-relaxed whitespace-pre-line">
                 {stripHtml(title.synopsis)}
               </p>
-            </GlassPanel>
+            </section>
           )}
 
           {(title.genres.length > 0 || title.tags.length > 0) && (
@@ -302,11 +281,11 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
                 <Link
                   key={genre}
                   href={`/discover?genres=${encodeURIComponent(genre)}`}
-                  className="rounded-pill border px-3 py-1.5 text-xs font-semibold transition-colors duration-200"
+                  className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-[transform,background] duration-200 hover:-translate-y-0.5"
                   style={{
                     color: accent,
-                    borderColor: `color-mix(in oklch, ${accent} 40%, transparent)`,
-                    background: `color-mix(in oklch, ${accent} 12%, transparent)`,
+                    borderColor: `color-mix(in oklch, ${accent} 38%, transparent)`,
+                    background: `color-mix(in oklch, ${accent} 11%, transparent)`,
                   }}
                 >
                   {genre}
@@ -318,7 +297,7 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
                 .map((tag) => (
                   <span
                     key={tag.name}
-                    className="glass-subtle text-fg-3 rounded-pill px-3 py-1.5 text-xs"
+                    className="glass-subtle text-fg-3 rounded-lg px-2.5 py-1.5 text-xs"
                     title={tag.rank ? `${tag.rank}% relevance` : undefined}
                   >
                     {tag.name}
@@ -330,11 +309,11 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
           {relations.length > 0 && (
             <section>
               <h2 className="panel-title mb-4">Franchise</h2>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 xl:grid-cols-5">
                 {relations.map((related) => (
                   <div key={`${related.id}-${related.relation_type}`}>
                     <p
-                      className="axis-caps mb-2"
+                      className="axis-caps mb-2 truncate"
                       style={{ color: mediaAccent(related.media_type) }}
                     >
                       {titleCase(related.relation_type)}
@@ -347,11 +326,10 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
           )}
         </div>
 
-        {/* ===== Sidebar ==================================================== */}
         <aside>
-          <GlassPanel radius="xl" className="p-5">
-            <h2 className="panel-title mb-4">Details</h2>
-            <dl className="space-y-0">
+          <GlassPanel radius="2xl" className="p-5">
+            <h2 className="panel-title mb-3">Details</h2>
+            <dl>
               <Detail label="Format" value={formatLabel(title.format)} />
               <Detail label="Status" value={airingStatusLabel(title.status)} />
               {title.episodes != null && (
@@ -409,22 +387,27 @@ export default async function TitlePage(props: PageProps<"/title/[id]">) {
 
 /* -------------------------------------------------------------------------- */
 
-function averageOf(
-  ratings: { enjoyment: number | string; craft: number | string }[],
-) {
-  if (ratings.length === 0) return null;
-  const n = ratings.length;
-  return {
-    enjoyment: ratings.reduce((a, r) => a + Number(r.enjoyment), 0) / n,
-    craft: ratings.reduce((a, r) => a + Number(r.craft), 0) / n,
-  };
-}
-
-function BigAxis({ value, color }: { value: number; color: string }) {
+function Stat({
+  label,
+  value,
+  color,
+  icon,
+}: {
+  label: string;
+  value: string;
+  color?: string;
+  icon?: React.ReactNode;
+}) {
   return (
-    <span className="numeral text-3xl leading-none sm:text-4xl" style={{ color }}>
-      {formatTen(value)}
-    </span>
+    <GlassPanel level="subtle" radius="xl" className="p-3.5">
+      <p className="axis-caps text-fg-3 mb-1.5 flex items-center gap-1.5 truncate">
+        {icon}
+        {label}
+      </p>
+      <p className="numeral text-2xl leading-none sm:text-3xl" style={{ color }}>
+        {value}
+      </p>
+    </GlassPanel>
   );
 }
 

@@ -2,9 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { TitleShelf } from "@/components/title/title-shelf";
-import { TitleCard } from "@/components/title/title-card";
-import { Score } from "@/components/rating/score";
+import { TitleRow } from "@/components/title/title-row";
+import { ScoreChip } from "@/components/rating/score-chip";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { buttonVariants } from "@/components/ui/button-variants";
 import {
@@ -14,7 +13,6 @@ import {
   getThisSeason,
 } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { AXIS_META } from "@/lib/rating";
 import {
   currentSeason,
   displayTitle,
@@ -47,87 +45,97 @@ export default async function HomePage() {
     getShelf("light_novel", "popular"),
     getShelf("light_novel", "top_rated"),
     user ? getRecommendations(user.id, 12) : Promise.resolve([]),
-    user ? getRatingsMap(user.id) : Promise.resolve(new Map()),
+    user ? getRatingsMap(user.id) : Promise.resolve(new Map<string, number>()),
   ]);
 
   const empty =
     thisSeason.length === 0 && animePopular.length === 0 && mangaPopular.length === 0;
-
   if (empty) return <EmptyCatalog />;
 
   const [lead, ...rest] = thisSeason;
 
+  /*
+    One row per idea, stacked. The previous version put "Most popular" and
+    "Highest rated" side by side in a two-column grid, which halved every
+    poster and meant two competing scroll directions on one line. Rows are
+    boring in the right way: your eye goes down the page, and each row gets the
+    full width to itself.
+  */
   return (
-    <div className="space-y-14">
+    <div className="space-y-12">
       {!user && <Hero />}
 
-      {/* ===== Feature ====================================================== */}
       {lead && <Feature title={lead} season={season} year={year} />}
 
-      {/* ===== The rest of the season ======================================= */}
-      {rest.length > 0 && (
-        <Section
-          heading="Also this season"
-          href={`/discover?media=anime&season=${season}&year_min=${year}&year_max=${year}`}
-        >
-          <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-            {rest.slice(0, 8).map((title, i) => (
-              <TitleCard
-                key={title.id}
-                title={title}
-                rating={ratings.get(title.id) ?? null}
-                priority={i < 4}
-              />
-            ))}
-          </div>
-        </Section>
-      )}
-
       {recs.length > 0 && (
-        <Section heading="For you">
-          <div className="no-scrollbar -mx-4 flex gap-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-            {recs.map((r) => (
-              <TitleCard
-                key={r.id}
-                title={r}
-                rating={ratings.get(r.id) ?? null}
-                className="w-[40vw] shrink-0 sm:w-40 lg:w-44"
-              />
-            ))}
-          </div>
-        </Section>
+        <TitleRow heading="For you" titles={recs} ratings={ratings} />
       )}
 
-      <MediaSection
-        type="anime"
-        popular={animePopular}
-        topRated={animeTop}
+      {rest.length > 0 && (
+        <TitleRow
+          heading="Airing now"
+          eyebrow={`${titleCase(season)} ${year}`}
+          titles={rest}
+          ratings={ratings}
+          href={`/discover?media=anime&season=${season}&year_min=${year}&year_max=${year}`}
+          priority
+        />
+      )}
+
+      <TitleRow
+        heading="Popular anime"
+        titles={animePopular}
         ratings={ratings}
+        accent={mediaAccent("anime")}
+        href="/discover?media=anime&sort=popularity"
       />
-      <MediaSection
-        type="manga"
-        popular={mangaPopular}
-        topRated={mangaTop}
+      <TitleRow
+        heading="Top rated anime"
+        titles={animeTop}
         ratings={ratings}
+        accent={mediaAccent("anime")}
+        href="/discover?media=anime&sort=score"
       />
-      <MediaSection
-        type="light_novel"
-        popular={lnPopular}
-        topRated={lnTop}
+      <TitleRow
+        heading={`Popular ${MEDIA_LABEL.manga.toLowerCase()}`}
+        titles={mangaPopular}
         ratings={ratings}
+        accent={mediaAccent("manga")}
+        href="/discover?media=manga&sort=popularity"
+      />
+      <TitleRow
+        heading={`Top rated ${MEDIA_LABEL.manga.toLowerCase()}`}
+        titles={mangaTop}
+        ratings={ratings}
+        accent={mediaAccent("manga")}
+        href="/discover?media=manga&sort=score"
+      />
+      <TitleRow
+        heading={`Popular ${MEDIA_LABEL.light_novel.toLowerCase()}`}
+        titles={lnPopular}
+        ratings={ratings}
+        accent={mediaAccent("light_novel")}
+        href="/discover?media=light_novel&sort=popularity"
+      />
+      <TitleRow
+        heading={`Top rated ${MEDIA_LABEL.light_novel.toLowerCase()}`}
+        titles={lnTop}
+        ratings={ratings}
+        accent={mediaAccent("light_novel")}
+        href="/discover?media=light_novel&sort=score"
       />
     </div>
   );
 }
 
 /**
- * One title, full width, at poster-and-synopsis scale.
+ * The season's most-tracked title, full width.
  *
- * The old home page opened with thirteen equally-weighted thumbnails, which
- * gave the eye nowhere to land. A single lead running the width of the page
- * sets a scale for everything under it — and because the panel is tinted with
- * that title's own cover colour, the top of the page looks different every
- * season instead of looking like a template.
+ * Everything below this is a row of posters at the same size, so the page
+ * needs one thing that isn't — otherwise there's no entry point and the eye
+ * just slides off. The panel is tinted with this title's own cover colour, so
+ * the top of the page looks different every season rather than looking like a
+ * template with the pictures swapped.
  */
 function Feature({
   title,
@@ -141,12 +149,12 @@ function Feature({
   const accent = mediaAccent(title.media_type);
   const art = title.cover_color ?? accent;
   const name = displayTitle(title);
-  const blurb = stripHtml(title.synopsis ?? "").slice(0, 240);
+  const blurb = stripHtml(title.synopsis ?? "").slice(0, 220);
 
   return (
     <section
-      className="art-edge relative overflow-hidden rounded-2xl"
-      style={{ "--art": art, background: "var(--glass-2)" } as React.CSSProperties}
+      className="relative isolate overflow-hidden rounded-3xl"
+      style={{ background: "var(--glass-2)" }}
     >
       {title.cover_image_large && (
         <Image
@@ -155,22 +163,22 @@ function Feature({
           fill
           priority
           sizes="100vw"
-          className="scale-110 object-cover opacity-25 blur-2xl"
+          className="scale-125 object-cover opacity-30 blur-3xl"
         />
       )}
       <div
         className="absolute inset-0"
         style={{
-          background: `linear-gradient(100deg, color-mix(in oklch, ${art} 42%, transparent), transparent 70%)`,
+          background: `linear-gradient(96deg, color-mix(in oklch, ${art} 55%, transparent) 0%, color-mix(in oklch, var(--bg-deep) 55%, transparent) 62%)`,
         }}
         aria-hidden
       />
 
-      <div className="relative flex flex-col gap-6 p-5 sm:flex-row sm:items-center sm:gap-8 sm:p-8">
+      <div className="relative flex flex-col gap-6 p-5 sm:flex-row sm:items-center sm:gap-9 sm:p-9">
         <Link
           href={`/title/${title.id}`}
-          className="relative aspect-[2/3] w-28 shrink-0 overflow-hidden rounded-xl shadow-[var(--shadow-lift)] sm:w-44"
-          style={{ background: art, border: "1px solid oklch(1 0 0 / 0.14)" }}
+          className="relative aspect-[2/3] w-32 shrink-0 overflow-hidden rounded-2xl shadow-[var(--shadow-lift)] transition-transform duration-500 hover:-translate-y-1 sm:w-48"
+          style={{ background: art, border: "1px solid oklch(1 0 0 / 0.16)" }}
         >
           {title.cover_image_large && (
             <Image
@@ -178,45 +186,46 @@ function Feature({
               alt=""
               fill
               priority
-              sizes="176px"
+              sizes="192px"
               className="object-cover"
             />
           )}
         </Link>
 
         <div className="min-w-0 flex-1">
-          <p className="axis-caps text-fg-3 mb-2.5">
+          <p className="axis-caps text-fg-2 mb-3">
             <span style={{ color: accent }}>
               {titleCase(season)} {year}
             </span>
-            <span className="mx-2 opacity-35">·</span>
+            <span className="mx-2 opacity-40">·</span>
             Most tracked
           </p>
 
           <h2 className="page-title text-balance-pretty">
             <Link
               href={`/title/${title.id}`}
-              className="transition-opacity hover:opacity-80"
+              className="transition-opacity hover:opacity-75"
             >
               {name}
             </Link>
           </h2>
 
           {blurb && (
-            <p className="text-fg-2 mt-3 line-clamp-3 max-w-2xl text-sm leading-relaxed">
+            <p className="text-fg-2 mt-3 line-clamp-2 max-w-2xl text-sm leading-relaxed sm:line-clamp-3">
               {blurb}…
             </p>
           )}
 
-          <div className="mt-5 flex flex-wrap items-center gap-5">
+          <div className="mt-6 flex flex-wrap items-center gap-5">
             {title.average_score != null && (
-              <Score percent={title.average_score} size="md" className="!p-0" />
+              <ScoreChip percent={title.average_score} size="lg" />
             )}
             <Link
               href={`/title/${title.id}`}
               className={buttonVariants({ variant: "primary", size: "md" })}
             >
               Open
+              <ArrowRight className="size-4" />
             </Link>
           </div>
         </div>
@@ -225,92 +234,16 @@ function Feature({
   );
 }
 
-function Section({
-  heading,
-  href,
-  children,
-}: {
-  heading: string;
-  href?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section>
-      <header className="mb-4 flex items-baseline justify-between gap-4">
-        <h2 className="text-lg font-bold tracking-tight sm:text-xl">{heading}</h2>
-        {href && (
-          <Link
-            href={href}
-            className="text-fg-3 hover:text-fg inline-flex shrink-0 items-center gap-1 text-xs font-semibold transition-colors"
-          >
-            All
-            <ArrowRight className="size-3.5" />
-          </Link>
-        )}
-      </header>
-      {children}
-    </section>
-  );
-}
-
-function MediaSection({
-  type,
-  popular,
-  topRated,
-  ratings,
-}: {
-  type: "anime" | "manga" | "light_novel";
-  popular: Awaited<ReturnType<typeof getShelf>>;
-  topRated: Awaited<ReturnType<typeof getShelf>>;
-  ratings: Awaited<ReturnType<typeof getRatingsMap>>;
-}) {
-  if (popular.length === 0 && topRated.length === 0) return null;
-  const accent = mediaAccent(type);
-
-  return (
-    <section className="space-y-7">
-      <div className="border-hairline flex items-center gap-3 border-b pb-3">
-        <span
-          className="size-2.5 shrink-0 rounded-full"
-          style={{ background: accent, boxShadow: `0 0 14px ${accent}` }}
-        />
-        <h2 className="text-lg font-bold tracking-tight sm:text-xl">
-          {MEDIA_LABEL[type]}
-        </h2>
-      </div>
-
-      <div className="grid gap-8 lg:grid-cols-2">
-        <TitleShelf
-          heading="Most popular"
-          titles={popular}
-          accent={accent}
-          ratings={ratings}
-          href={`/discover?media=${type}&sort=popularity`}
-        />
-        <TitleShelf
-          heading="Highest rated"
-          titles={topRated}
-          accent={accent}
-          ratings={ratings}
-          href={`/discover?media=${type}&sort=score`}
-        />
-      </div>
-    </section>
-  );
-}
-
 function Hero() {
   return (
-    <section className="py-6 sm:py-10">
-      <h1 className="max-w-4xl text-[clamp(2.25rem,1.5rem+3.4vw,4.5rem)] leading-[0.98] font-bold tracking-[-0.04em] text-balance-pretty">
-        Two scores.
-        <br />
-        <span style={{ color: AXIS_META.enjoyment.color }}>Enjoyment</span> and{" "}
-        <span style={{ color: AXIS_META.craft.color }}>craft</span>, kept apart.
+    <section className="py-4 sm:py-8">
+      <h1 className="max-w-3xl text-[clamp(2.25rem,1.4rem+3.6vw,4.25rem)] leading-[0.96] font-bold tracking-[-0.04em] text-balance-pretty">
+        Rank what you watch.
       </h1>
       <p className="text-fg-2 mt-5 max-w-xl text-base leading-relaxed sm:text-lg">
-        Track anime, manga and light novels. Rate how much you liked something
-        and how well it was made as separate numbers, because they usually are.
+        Stack doesn&rsquo;t ask you to invent a number. Say whether you liked
+        something, answer a few &ldquo;which was better&rdquo; questions, and it
+        works out where it sits against everything else you&rsquo;ve seen.
       </p>
       <div className="mt-8 flex flex-wrap gap-3">
         <Link

@@ -1,9 +1,8 @@
 # Stack
 
-An anime, manga and light novel tracker built around a **two-axis rating
-system**: every title gets a separate **Enjoyment** score and **Craft** score,
-so you never have to choose between overrating a mess you love and underrating
-a masterpiece you bounced off.
+An anime, manga and light novel tracker built around **comparative rating**:
+instead of asking you to invent a number, it asks which of two shows you liked
+more and works the score out from where things land against each other.
 
 Letterboxd's profile and list culture, AniList's database and calendar, an
 iOS-style liquid-glass interface.
@@ -55,20 +54,20 @@ src/
     discover/                Fuzzy search + tri-state filters
     library/                 Three media tabs, status, tap-+1 progress
     calendar/                7-day airing schedule, library-highlighted
-    title/[id]/              Detail: art-tinted hero, rating pad, franchise
-    u/[username]/            Profile: averages, stat tiles, favourites, activity
-    settings/                Profile + the opt-in "Overall" sort
+    title/[id]/              Detail: art hero, action bar, stats, franchise
+    u/[username]/            Profile: bucket bar, ranked list, stats, activity
+    settings/                Profile fields and privacy
     (auth)/                  Sign in / sign up
     actions/                 Server actions: rating.ts, library.ts
     api/cron/sync/           Scheduled catalog refresh (Vercel Cron)
   components/
-    rating/                  StarRow, RatingPad, Score, DualScore
+    rating/                  RateButton, RatingDialog, ScoreChip
     library/                 ProgressStepper, VolumeField, StatusPicker
-    title/                   TitleCard, TitleShelf
-    ui/                      Glass primitives incl. TriStateChip
+    title/                   TitleCard, TitleRow
+    ui/                      Glass primitives, Popover (all menus portal), TriStateChip
     shell/                   Nav, tab bar, quick search, theme toggle
   lib/
-    rating.ts                Two-axis logic, the 0-10 display scale, quadrants
+    rating.ts                Buckets, the 0-10 scale, binary-search placement
     queries.ts               Every server-side read
     anilist.ts               GraphQL client + mappers
     supabase/                client / server / admin
@@ -76,29 +75,35 @@ src/
 
 ## The rating model
 
-Two independent scores, `0.5–5.0` in half-star steps:
+You never type a score. You say roughly how you felt, answer a few head-to-head
+questions, and the number comes out of where the title landed.
 
-- **Enjoyment** — how much you personally liked it
-- **Craft** — how well-made it is
+1. Pick a bucket — **Loved it**, **It was fine**, **Didn't like it**.
+2. Stack binary-searches that bucket — "which did you prefer?", one pair at a
+   time. About log2(n) questions, so five taps place a title among thirty.
+3. Everything in the bucket is respread across its slice of the 0-10 scale:
 
-They're stored separately, displayed side by side everywhere, and **never
-blended** in the UI. The only place they combine is an opt-in "Overall" sort
-(even 50/50 average), isolated in `src/lib/rating.ts` so it can be reweighted or
-deleted in one edit.
+   | Bucket | Range |
+   | --- | --- |
+   | Didn't like it | 0.1 – 3.3 |
+   | It was fine | 3.4 – 6.7 |
+   | Loved it | 6.8 – 10.0 |
 
-**Every score in the app displays as 0–10 with one decimal.** Stars stay the
-input — clicking a glyph beats typing a decimal — and are doubled for display;
-AniList's 0–100 percentage is tenthed. Both conversions live in `formatTen()`
-and `formatPercentAsTen()` and nowhere else, so there is never more than one
-scale on screen.
+Your scores move as the list grows, and that is the point — a 9.1 means
+"ninth-best thing I've seen", which is a fact about the list, not the title.
 
-There are no charts. The quadrants below are still how `user_stats` buckets a
-library, but they are read from the two numbers rather than drawn:
+Your first ten ratings are typed in directly, because there is nothing to
+compare against yet; the first comparison in a bucket takes those seeds
+relative too.
 
-|  | Low craft | High craft |
-| --- | --- | --- |
-| **High enjoyment** | Guilty pleasures | All-time favorites |
-| **Low enjoyment** | Not for you | Respected, not for me |
+The server owns all of it — `place_rating()`, `seed_rating()` and
+`respread_bucket()` in `supabase/schema.sql`. `src/lib/rating.ts` holds the
+matching constants and the binary-search driver.
+
+> **Changing the rating model needs a schema run.** `supabase/schema.sql`
+> migrates the old two-axis `ratings` table in place (old scores are carried
+> over as the mean of the two axes, doubled). Paste it into the Supabase SQL
+> editor before deploying, or every score on the site reads as `—`.
 
 ## Commands
 

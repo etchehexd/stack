@@ -29,8 +29,8 @@ export function MobileTabBar({
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
-      <div className="glass-heavy specular mx-auto flex max-w-md items-center justify-around rounded-pill p-1.5">
+    <nav className="fixed inset-x-0 bottom-0 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden" style={{ zIndex: "var(--z-nav)" as unknown as number }}>
+      <div className="glass-heavy mx-auto flex max-w-md items-center justify-around rounded-2xl p-1.5">
         {tabs.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/" ? pathname === "/" : pathname.startsWith(href);

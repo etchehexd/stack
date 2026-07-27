@@ -7,15 +7,11 @@ import { motion } from "motion/react";
 
 import { ProgressStepper, VolumeField } from "@/components/library/progress-stepper";
 import { StatusPicker } from "@/components/library/status-picker";
-import { DualScore } from "@/components/rating/score";
+import { ScoreChip } from "@/components/rating/score-chip";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { Segmented } from "@/components/ui/segmented";
 import type { LibraryRow } from "@/lib/queries";
-import {
-  SORT_OPTIONS,
-  ratingSortValue,
-  type RatingSortKey,
-} from "@/lib/rating";
+import { LIBRARY_SORTS, type LibrarySortKey } from "@/lib/rating";
 import type { LibraryStatus, MediaType } from "@/lib/types/database";
 import {
   LIBRARY_STATUSES,
@@ -30,28 +26,16 @@ import {
   totalUnits,
 } from "@/lib/utils";
 
-type RatingMap = Record<string, { enjoyment: number | null; craft: number | null }>;
+type RatingMap = Record<string, number>;
 
 export interface LibraryViewProps {
   entries: Record<MediaType, LibraryRow[]>;
   ratings: RatingMap;
-  /** From profiles.preferences — gates the optional "Overall" sort. */
-  overallSortEnabled: boolean;
 }
 
-type SortKey = "updated" | "title" | "progress" | RatingSortKey;
+type SortKey = LibrarySortKey;
 
-const BASE_SORTS: { key: SortKey; label: string }[] = [
-  { key: "updated", label: "Recently updated" },
-  { key: "title", label: "A–Z" },
-  { key: "progress", label: "Progress" },
-];
-
-export function LibraryView({
-  entries,
-  ratings,
-  overallSortEnabled,
-}: LibraryViewProps) {
+export function LibraryView({ entries, ratings }: LibraryViewProps) {
   const [mediaType, setMediaType] = React.useState<MediaType>("anime");
   const [status, setStatus] = React.useState<LibraryStatus | "all">("all");
   const [sort, setSort] = React.useState<SortKey>("updated");
@@ -81,19 +65,9 @@ export function LibraryView({
           return displayTitle(a.titles).localeCompare(displayTitle(b.titles));
         case "progress":
           return b.progress - a.progress;
-        case "enjoyment":
-        case "craft":
-        case "overall": {
-          const av = ratingSortValue(
-            sort,
-            ratings[a.title_id]?.enjoyment ?? null,
-            ratings[a.title_id]?.craft ?? null,
-          );
-          const bv = ratingSortValue(
-            sort,
-            ratings[b.title_id]?.enjoyment ?? null,
-            ratings[b.title_id]?.craft ?? null,
-          );
+        case "score": {
+          const av = ratings[a.title_id] ?? null;
+          const bv = ratings[b.title_id] ?? null;
           // Unrated titles sink to the bottom rather than sorting as zero.
           if (av == null && bv == null) return 0;
           if (av == null) return 1;
@@ -109,12 +83,7 @@ export function LibraryView({
     return sorted;
   }, [rows, status, sort, ratings]);
 
-  const sortOptions = [
-    ...BASE_SORTS,
-    ...SORT_OPTIONS.filter((o) => !o.requiresOptIn || overallSortEnabled).map(
-      (o) => ({ key: o.key as SortKey, label: o.label }),
-    ),
-  ];
+  const sortOptions = LIBRARY_SORTS;
 
   return (
     <div className="space-y-5">
@@ -180,7 +149,7 @@ export function LibraryView({
             <LibraryRowItem
               key={row.title_id}
               row={row}
-              rating={ratings[row.title_id] ?? null}
+              score={ratings[row.title_id] ?? null}
               index={i}
             />
           ))}
@@ -221,11 +190,11 @@ function StatusChip({
 
 function LibraryRowItem({
   row,
-  rating,
+  score,
   index,
 }: {
   row: LibraryRow;
-  rating: { enjoyment: number | null; craft: number | null } | null;
+  score: number | null;
   index: number;
 }) {
   const title = row.titles;
@@ -296,15 +265,12 @@ function LibraryRowItem({
             <span>{relativeTime(row.updated_at)}</span>
           </p>
 
-          {rating && (rating.enjoyment != null || rating.craft != null) && (
-            <DualScore
-              enjoyment={rating.enjoyment}
-              craft={rating.craft}
-              size="xs"
-              className="mt-2 max-w-28"
-            />
-          )}
+
         </div>
+
+        {score != null && (
+          <ScoreChip score={score} mine size="md" className="relative shrink-0" />
+        )}
 
         <div className="relative flex shrink-0 flex-col items-end gap-1.5">
           <div className="flex items-center gap-2">

@@ -151,16 +151,20 @@ export interface Database {
         Row: {
           user_id: string;
           title_id: string;
-          enjoyment: number | null;
-          craft: number | null;
+          bucket: RatingBucket;
+          /** 0-based position inside the bucket, ascending (0 = worst). */
+          ord: number;
+          /** Derived from ord by respread_bucket(). Never write this directly. */
+          score: number;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           user_id: string;
           title_id: string;
-          enjoyment?: number | null;
-          craft?: number | null;
+          bucket: RatingBucket;
+          ord?: number;
+          score?: number;
         };
         Update: Partial<Database["public"]["Tables"]["ratings"]["Insert"]>;
         Relationships: [];
@@ -359,6 +363,18 @@ export interface Database {
         Args: { p_a: string; p_b: string };
         Returns: TasteCompatibility;
       };
+      place_rating: {
+        Args: { p_title_id: string; p_bucket: string; p_position: number };
+        Returns: number;
+      };
+      seed_rating: {
+        Args: { p_title_id: string; p_score: number };
+        Returns: number;
+      };
+      unrate: {
+        Args: { p_title_id: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       media_type: MediaType;
@@ -400,6 +416,9 @@ export interface SearchResult {
   total_count: number;
 }
 
+/** Matches the ratings_bucket_valid constraint in schema.sql. */
+export type RatingBucket = "loved" | "fine" | "bad";
+
 export interface UserStats {
   total_entries: number;
   anime_count: number;
@@ -415,13 +434,11 @@ export interface UserStats {
   chapters_read: number;
   volumes_read: number;
   rated_count: number;
-  avg_enjoyment: number | null;
-  avg_craft: number | null;
-  quadrants: {
-    favorites: number;
-    guilty: number;
-    respected: number;
-    notforyou: number;
+  avg_score: number | null;
+  buckets: {
+    loved: number;
+    fine: number;
+    bad: number;
   };
   top_genres: { name: string; count: number }[];
   top_studios: { name: string; count: number }[];
@@ -445,8 +462,7 @@ export interface Recommendation {
 export interface TasteCompatibility {
   shared_count: number;
   compatibility: number | null;
-  enjoyment_gap: number | null;
-  craft_gap: number | null;
+  score_gap: number | null;
 }
 
 /* Convenience aliases used throughout the app ------------------------------ */

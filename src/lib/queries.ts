@@ -235,22 +235,27 @@ export async function getRelations(titleId: string): Promise<RelatedTitle[]> {
     .filter((r): r is RelatedTitle => r !== null);
 }
 
-/** Every rating of a title, for the community distribution scatter. */
+/** How Stack's own users scored a title: the mean and the sample size. */
 export async function getTitleRatings(titleId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("ratings")
-    .select("user_id, enjoyment, craft")
+    .select("score")
     .eq("title_id", titleId)
-    .not("enjoyment", "is", null)
-    .not("craft", "is", null)
-    .limit(500);
+    .limit(1000);
 
   if (error) {
     console.error("[getTitleRatings]", error.message);
-    return [];
+    return { average: null, count: 0 };
   }
-  return data ?? [];
+
+  const scores = (data ?? []).map((r) => Number(r.score));
+  if (scores.length === 0) return { average: null, count: 0 };
+
+  return {
+    average: scores.reduce((a, b) => a + b, 0) / scores.length,
+    count: scores.length,
+  };
 }
 
 /** The viewer's own rating + library entry for a title. */
@@ -264,7 +269,7 @@ export async function getUserTitleState(titleId: string) {
   const [ratingRes, entryRes, favRes] = await Promise.all([
     supabase
       .from("ratings")
-      .select("enjoyment, craft")
+      .select("score, bucket")
       .eq("user_id", user.id)
       .eq("title_id", titleId)
       .maybeSingle(),
@@ -287,25 +292,6 @@ export async function getUserTitleState(titleId: string) {
     entry: entryRes.data,
     isFavorite: Boolean(favRes.data),
   };
-}
-
-/** The viewer's ratings, as faint context dots behind the live rating pad. */
-export async function getMyRatingPoints(limit = 200) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
-
-  const { data } = await supabase
-    .from("ratings")
-    .select("title_id, enjoyment, craft")
-    .eq("user_id", user.id)
-    .not("enjoyment", "is", null)
-    .not("craft", "is", null)
-    .limit(limit);
-
-  return data ?? [];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -347,12 +333,10 @@ export async function getRatingsMap(userId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("ratings")
-    .select("title_id, enjoyment, craft")
+    .select("title_id, score")
     .eq("user_id", userId);
 
-  return new Map(
-    (data ?? []).map((r) => [r.title_id, { enjoyment: r.enjoyment, craft: r.craft }]),
-  );
+  return new Map((data ?? []).map((r) => [r.title_id, Number(r.score)]));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -441,36 +425,25 @@ export async function getUserStats(userId: string) {
   return data;
 }
 
-/** All of a user's rated titles, for the profile scatter. */
-export async function getRatingScatter(userId: string) {
+/** A user's rated titles, best first. Powers the ranked list on a profile. */
+export async function getRatedTitles(userId: string, limit = 60) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("ratings")
-    .select(
-      `enjoyment, craft,
-       titles!inner(id, media_type, title_english, title_romaji, cover_image_large)`,
-    )
+    .select(`score, bucket, titles!inner(${CARD_COLUMNS})`)
     .eq("user_id", userId)
-    .not("enjoyment", "is", null)
-    .not("craft", "is", null)
-    .limit(1000);
+    .order("score", { ascending: false })
+    .limit(limit);
 
   if (error) {
-    console.error("[getRatingScatter]", error.message);
+    console.error("[getRatedTitles]", error.message);
     return [];
   }
 
-  return (data ?? []) as unknown as {
-    enjoyment: number;
-    craft: number;
-    titles: {
-      id: string;
-      media_type: MediaType;
-      title_english: string | null;
-      title_romaji: string | null;
-      cover_image_large: string | null;
-    };
-  }[];
+  return (data ?? []).map((row) => ({
+    score: Number((row as unknown as { score: number }).score),
+    title: (row as unknown as { titles: CardTitle }).titles,
+  }));
 }
 
 export async function getFavorites(userId: string): Promise<CardTitle[]> {

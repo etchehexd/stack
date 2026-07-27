@@ -57,7 +57,6 @@ export default async function LibraryPage() {
       <LibraryView
         entries={entries}
         ratings={Object.fromEntries(ratings)}
-        overallSortEnabled={profile.preferences?.overall_sort_enabled ?? false}
       />
     </div>
   );
